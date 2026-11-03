@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mensch ärgere dich nicht</title>
+  <style>
+    :root {
+      --c0: #e53935; --c1: #1e88e5; --c2: #fdd835; --c3: #43a047;
+      --l0: #ffcdd2; --l1: #bbdefb; --l2: #fff9c4; --l3: #c8e6c9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 16px;
+      line-height: 1.4;
+      color: #222;
+      background: #f5f1e8;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.5rem; text-align: center; }
+    a.back { display: inline-block; margin-bottom: 8px; color: #555; }
+    button.btn {
+      font: inherit; font-weight: 600; padding: 10px 18px; border: 0; border-radius: 8px;
+      background: #3949ab; color: #fff; cursor: pointer;
+    }
+    button.btn:disabled { background: #aaa; cursor: default; }
+    #setup, #game { text-align: center; }
+    #setup .count button { margin: 4px; }
+    #setup .count button.sel { outline: 3px solid #222; }
+    .names { display: grid; gap: 8px; margin: 16px auto; max-width: 320px; }
+    .names label { display: flex; align-items: center; gap: 8px; }
+    .names input { flex: 1; font: inherit; padding: 6px 8px; border: 1px solid #aaa; border-radius: 6px; }
+    .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #222; flex: none; }
+    #game { display: none; }
+    #status { font-size: 1.1rem; font-weight: 600; margin: 8px 0; min-height: 1.6em; }
+    #board {
+      display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr);
+      gap: 2px; width: 100%; aspect-ratio: 1; background: #d7ccb4; padding: 4px; border-radius: 12px;
+      margin: 0 auto;
+    }
+    .cell { position: relative; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .cell.track { background: #fff; border: 2px solid #8a7e63; }
+    .cell.home { border: 2px solid #8a7e63; }
+    .cell.yard { border: 2px dashed #8a7e63; }
+    .cell.start { border: 3px solid #222; }
+    .piece {
+      width: 82%; height: 82%; border-radius: 50%; border: 2px solid #222; padding: 0;
+      box-shadow: inset 0 -3px 0 rgba(0,0,0,.25);
+    }
+    .piece.can { cursor: pointer; animation: pulse .8s infinite alternate; outline: 3px solid #222; }
+    @keyframes pulse { to { transform: scale(1.18); } }
+    #controls { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 12px; }
+    #die {
+      width: 64px; height: 64px; background: #fff; border: 3px solid #222; border-radius: 12px;
+      display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 6px;
+    }
+    #die i { width: 10px; height: 10px; background: #222; border-radius: 50%; place-self: center; visibility: hidden; }
+    #die i.on { visibility: visible; }
+    #die.rolling { animation: shake .15s infinite; }
+    @keyframes shake { 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
+    #win h2 { margin: 16px 0 8px; }
+    #win { display: none; }
+  </style>
+</head>
+<body>
+  <a class="back" href="index_4.html">← Zurück zur Übersicht</a>
+  <h1>Mensch ärgere dich nicht</h1>
+
+  <div id="setup">
+    <p>Wie viele Personen spielen?</p>
+    <div class="count" id="count"></div>
+    <div class="names" id="names"></div>
+    <button class="btn" id="start">Spiel starten</button>
+  </div>
+
+  <div id="game">
+    <div id="status"></div>
+    <div id="board"></div>
+    <div id="controls">
+      <div id="die"></div>
+      <button class="btn" id="roll">Würfeln</button>
+    </div>
+    <div id="win">
+      <h2 id="winText"></h2>
+      <button class="btn" id="again">Neues Spiel</button>
+    </div>
+  </div>
+
+<script>
+const COLORS = ['var(--c0)', 'var(--c1)', 'var(--c2)', 'var(--c3)'];
+const LIGHT = ['var(--l0)', 'var(--l1)', 'var(--l2)', 'var(--l3)'];
+const COLOR_NAMES = ['Rot', 'Blau', 'Gelb', 'Grün'];
+
+// 40 Felder im Uhrzeigersinn als [Zeile, Spalte]; Startfeld von Spieler s ist Index s*10
+const PATH = [
+  [4,0],[4,1],[4,2],[4,3],[4,4],[3,4],[2,4],[1,4],[0,4],[0,5],
+  [0,6],[1,6],[2,6],[3,6],[4,6],[4,7],[4,8],[4,9],[4,10],[5,10],
+  [6,10],[6,9],[6,8],[6,7],[6,6],[7,6],[8,6],[9,6],[10,6],[10,5],
+  [10,4],[9,4],[8,4],[7,4],[6,4],[6,3],[6,2],[6,1],[6,0],[5,0]
+];
+const HOME = [
+  [[5,1],[5,2],[5,3],[5,4]],
+  [[1,5],[2,5],[3,5],[4,5]],
+  [[5,9],[5,8],[5,7],[5,6]],
+  [[9,5],[8,5],[7,5],[6,5]]
+];
+const DOTS = [[], [4], [0,8], [0,4,8], [0,2,6,8], [0,2,4,6,8], [0,2,3,5,6,8]];
+
+let seats, names, pieces, cur, die, phase, tries, moves;
+let chosenCount = 4;
+
+function yardCell(s, k) {
+  const r0 = s >= 2 ? 9 : 0, c0 = (s === 1 || s === 2) ? 9 : 0;
+  return [r0 + (k >> 1), c0 + (k & 1)];
+}
+function cellOf(s, k) {
+  const r = pieces[s][k];
+  if (r < 0) return yardCell(s, k);
+  if (r < 40) return PATH[(s * 10 + r) % 40];
+  return HOME[s][r - 40];
+}
+function absIdx(s, r) { return (s * 10 + r) % 40; }
+
+// ---------- Einrichtung ----------
+function buildSetup() {
+  const cnt = document.getElementById('count');
+  cnt.innerHTML = '';
+  [2, 3, 4].forEach(n => {
+    const b = document.createElement('button');
+    b.className = 'btn' + (n === chosenCount ? ' sel' : '');
+    b.textContent = n + ' Personen';
+    b.onclick = () => { chosenCount = n; buildSetup(); };
+    cnt.appendChild(b);
+  });
+  const seatList = seatsFor(chosenCount);
+  const nm = document.getElementById('names');
+  const old = [...nm.querySelectorAll('input')].map(i => i.value);
+  nm.innerHTML = '';
+  seatList.forEach((s, i) => {
+    const l = document.createElement('label');
+    l.innerHTML = `<span class="dot" style="background:${COLORS[s]}"></span><input maxlength="16" placeholder="${COLOR_NAMES[s]}" value="${old[i] || ''}">`;
+    nm.appendChild(l);
+  });
+}
+function seatsFor(n) { return n === 2 ? [0, 2] : n === 3 ? [0, 1, 2] : [0, 1, 2, 3]; }
+
+document.getElementById('start').onclick = () => {
+  seats = seatsFor(chosenCount);
+  names = {};
+  document.querySelectorAll('#names input').forEach((inp, i) => {
+    names[seats[i]] = inp.value.trim() || COLOR_NAMES[seats[i]];
+  });
+  pieces = {};
+  seats.forEach(s => pieces[s] = [-1, -1, -1, -1]);
+  cur = seats[0]; die = 0; phase = 'roll'; tries = 3; moves = [];
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('game').style.display = 'block';
+  document.getElementById('win').style.display = 'none';
+  document.getElementById('controls').style.display = 'flex';
+  render();
+};
+document.getElementById('again').onclick = () => {
+  document.getElementById('game').style.display = 'none';
+  document.getElementById('setup').style.display = 'block';
+};
+
+// ---------- Spiellogik ----------
+function legalMoves(s, d) {
+  const res = [];
+  const own = pieces[s];
+  const startBlocked = own.includes(0);
+  const hasYard = own.includes(-1);
+  own.forEach((r, k) => {
+    let t;
+    if (r === -1) {
+      if (d !== 6) return;
+      t = 0;
+    } else {
+      t = r + d;
+      if (t > 43) return;
+      // Im Zielhaus nicht überspringen
+      for (let x = r + 1; x <= t; x++) if (x >= 40 && own.includes(x)) return;
+    }
+    if (own.includes(t)) return;
+    res.push({ k, to: t });
+  });
+  // Bei einer 6 muss das Startfeld freigemacht werden, falls möglich
+  if (d === 6 && hasYard && startBlocked) {
+    const clearing = res.filter(m => pieces[s][m.k] === 0);
+    if (clearing.length) return clearing;
+  }
+  return res;
+}
+
+function roll() {
+  if (phase !== 'roll') return;
+  phase = 'rolling';
+  const dieEl = document.getElementById('die');
+  dieEl.classList.add('rolling');
+  document.getElementById('roll').disabled = true;
+  setTimeout(() => {
+    dieEl.classList.remove('rolling');
+    die = 1 + Math.floor(Math.random() * 6);
+    moves = legalMoves(cur, die);
+    if (moves.length) {
+      phase = 'move';
+    } else {
+      const onTrack = pieces[cur].some(r => r >= 0 && r < 40);
+      if (!onTrack && tries > 1) {
+        tries--;
+        phase = 'roll';
+        status(`${names[cur]} hat eine ${die} gewürfelt – noch ${tries} Versuch${tries > 1 ? 'e' : ''}.`);
+        render(true);
+        return;
+      }
+      status(`${names[cur]} hat eine ${die} gewürfelt – kein Zug möglich.`);
+      render(true);
+      setTimeout(nextPlayer, 1200);
+      return;
+    }
+    render();
+  }, 500);
+}
+
+function move(k) {
+  const m = moves.find(x => x.k === k);
+  if (!m) return;
+  const s = cur;
+  pieces[s][k] = m.to;
+  if (m.to < 40) {
+    const a = absIdx(s, m.to);
+    seats.forEach(o => {
+      if (o === s) return;
+      pieces[o].forEach((r, j) => {
+        if (r >= 0 && r < 40 && absIdx(o, r) === a) pieces[o][j] = -1;
+      });
+    });
+  }
+  if (pieces[s].every(r => r >= 40)) { finish(s); return; }
+  moves = [];
+  if (die === 6) { phase = 'roll'; tries = 1; render(); }
+  else nextPlayer();
+}
+
+function nextPlayer() {
+  cur = seats[(seats.indexOf(cur) + 1) % seats.length];
+  phase = 'roll'; moves = []; die = 0; tries = 3;
+  render();
+}
+
+function finish(s) {
+  phase = 'over';
+  render();
+  document.getElementById('win').style.display = 'block';
+  document.getElementById('controls').style.display = 'none';
+  document.getElementById('winText').textContent = `🎉 ${names[s]} (${COLOR_NAMES[s]}) hat gewonnen!`;
+  status('Spiel beendet');
+}
+
+// ---------- Darstellung ----------
+function status(t) { document.getElementById('status').textContent = t; }
+
+function render(keepStatus) {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  const cells = {};
+  const mk = (r, c, cls, bg) => {
+    const d = document.createElement('div');
+    d.className = 'cell ' + cls;
+    d.style.gridRow = r + 1; d.style.gridColumn = c + 1;
+    if (bg) d.style.background = bg;
+    board.appendChild(d);
+    cells[r + ',' + c] = d;
+    return d;
+  };
+  PATH.forEach(([r, c], i) => {
+    if (i % 10 === 0) mk(r, c, 'track start', LIGHT[i / 10]);
+    else mk(r, c, 'track');
+  });
+  HOME.forEach((lane, s) => lane.forEach(([r, c]) => mk(r, c, 'home', LIGHT[s])));
+  for (let s = 0; s < 4; s++) for (let k = 0; k < 4; k++) {
+    const [r, c] = yardCell(s, k);
+    mk(r, c, 'yard', LIGHT[s]);
+  }
+  seats.forEach(s => pieces[s].forEach((_, k) => {
+    const [r, c] = cellOf(s, k);
+    const p = document.createElement('button');
+    p.className = 'piece';
+    p.style.background = COLORS[s];
+    p.setAttribute('aria-label', `${COLOR_NAMES[s]} Figur ${k + 1}`);
+    if (s === cur && phase === 'move' && moves.some(m => m.k === k)) {
+      p.classList.add('can');
+      p.onclick = () => move(k);
+    } else p.disabled = true;
+    cells[r + ',' + c].appendChild(p);
+  }));
+
+  const dieEl = document.getElementById('die');
+  dieEl.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const d = document.createElement('i');
+    if (DOTS[die].includes(i)) d.className = 'on';
+    dieEl.appendChild(d);
+  }
+  dieEl.setAttribute('aria-label', die ? 'Würfel zeigt ' + die : 'Würfel');
+  document.getElementById('roll').disabled = phase !== 'roll';
+
+  if (!keepStatus && phase !== 'over') {
+    if (phase === 'roll') status(`${names[cur]} (${COLOR_NAMES[cur]}) ist dran – bitte würfeln.`);
+    else if (phase === 'move') status(`${names[cur]} hat eine ${die} gewürfelt – Figur wählen.`);
+  }
+}
+
+document.getElementById('roll').onclick = roll;
+buildSetup();
+</script>
+</body>
+</html>

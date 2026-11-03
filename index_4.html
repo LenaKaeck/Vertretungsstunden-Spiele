@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meine Seite</title>
+  <title>Vertretungsstunden-Spiele</title>
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -13,10 +13,26 @@
       line-height: 1.6;
       color: #222;
     }
+    ul.games { list-style: none; padding: 0; display: grid; gap: 12px; }
+    ul.games a {
+      display: block; padding: 16px; border: 1px solid #ccc; border-radius: 10px;
+      text-decoration: none; color: inherit;
+    }
+    ul.games a:hover { background: #f2f2f2; }
+    ul.games strong { display: block; font-size: 1.1rem; }
+    ul.games span { color: #666; font-size: .95rem; }
   </style>
 </head>
 <body>
-  <h1>Willkommen</h1>
-  <p>Diese Seite ist online. Hier kommt bald mehr Inhalt.</p>
+  <h1>Vertretungsstunden-Spiele</h1>
+  <p>Wähle ein Spiel:</p>
+  <ul class="games">
+    <li>
+      <a href="mensch-aergere-dich-nicht.html">
+        <strong>🎲 Mensch ärgere dich nicht</strong>
+        <span>Der Klassiker für 2 bis 4 Personen</span>
+      </a>
+    </li>
+  </ul>
 </body>
 </html>
