@@ -71,6 +71,8 @@
   <div id="setup">
     <p>Wie viele Personen spielen?</p>
     <div class="count" id="count"></div>
+    <p>Welche Variante?</p>
+    <div class="count" id="size"></div>
     <div class="names" id="names"></div>
     <button class="btn" id="start">Spiel starten</button>
   </div>
@@ -93,35 +95,39 @@ const COLORS = ['var(--c0)', 'var(--c1)', 'var(--c2)', 'var(--c3)'];
 const LIGHT = ['var(--l0)', 'var(--l1)', 'var(--l2)', 'var(--l3)'];
 const COLOR_NAMES = ['Rot', 'Blau', 'Gelb', 'Grün'];
 
-// 40 Felder im Uhrzeigersinn als [Zeile, Spalte]; Startfeld von Spieler s ist Index s*10
-const PATH = [
-  [4,0],[4,1],[4,2],[4,3],[4,4],[3,4],[2,4],[1,4],[0,4],[0,5],
-  [0,6],[1,6],[2,6],[3,6],[4,6],[4,7],[4,8],[4,9],[4,10],[5,10],
-  [6,10],[6,9],[6,8],[6,7],[6,6],[7,6],[8,6],[9,6],[10,6],[10,5],
-  [10,4],[9,4],[8,4],[7,4],[6,4],[6,3],[6,2],[6,1],[6,0],[5,0]
-];
-const HOME = [
-  [[5,1],[5,2],[5,3],[5,4]],
-  [[1,5],[2,5],[3,5],[4,5]],
-  [[5,9],[5,8],[5,7],[5,6]],
-  [[9,5],[8,5],[7,5],[6,5]]
-];
+// Brettgröße hängt von A (Armbreite) ab: klassisch A=4 (40 Felder, 4 Figuren), kurz A=3 (32 Felder, 3 Figuren).
+// PATH: T Felder im Uhrzeigersinn als [Zeile, Spalte]; Startfeld von Spieler s ist Index s*L.
+let A, N, L, T, PATH, HOME;
+function configure(arm) {
+  A = arm; N = 2 * A + 3; L = 2 * A + 2; T = 4 * L;
+  const rot = ([r, c]) => [c, N - 1 - r];
+  let q = [], h = [];
+  for (let c = 0; c <= A; c++) q.push([A, c]);
+  for (let r = A - 1; r >= 0; r--) q.push([r, A]);
+  q.push([0, A + 1]);
+  for (let c = 1; c <= A; c++) h.push([A + 1, c]);
+  PATH = []; HOME = [];
+  for (let s = 0; s < 4; s++) {
+    PATH.push(...q); HOME.push(h);
+    q = q.map(rot); h = h.map(rot);
+  }
+}
 const DOTS = [[], [4], [0,8], [0,4,8], [0,2,6,8], [0,2,4,6,8], [0,2,3,5,6,8]];
 
 let seats, names, pieces, cur, die, phase, tries, moves;
-let chosenCount = 4;
+let chosenCount = 4, chosenArm = 4;
 
 function yardCell(s, k) {
-  const r0 = s >= 2 ? 9 : 0, c0 = (s === 1 || s === 2) ? 9 : 0;
+  const r0 = s >= 2 ? N - 2 : 0, c0 = (s === 1 || s === 2) ? N - 2 : 0;
   return [r0 + (k >> 1), c0 + (k & 1)];
 }
 function cellOf(s, k) {
   const r = pieces[s][k];
   if (r < 0) return yardCell(s, k);
-  if (r < 40) return PATH[(s * 10 + r) % 40];
-  return HOME[s][r - 40];
+  if (r < T) return PATH[(s * L + r) % T];
+  return HOME[s][r - T];
 }
-function absIdx(s, r) { return (s * 10 + r) % 40; }
+function absIdx(s, r) { return (s * L + r) % T; }
 
 // ---------- Einrichtung ----------
 function buildSetup() {
@@ -133,6 +139,15 @@ function buildSetup() {
     b.textContent = n + ' Personen';
     b.onclick = () => { chosenCount = n; buildSetup(); };
     cnt.appendChild(b);
+  });
+  const sz = document.getElementById('size');
+  sz.innerHTML = '';
+  [[4, 'Klassisch (40 Felder)'], [3, 'Kurz (32 Felder, 3 Figuren)']].forEach(([arm, text]) => {
+    const b = document.createElement('button');
+    b.className = 'btn' + (arm === chosenArm ? ' sel' : '');
+    b.textContent = text;
+    b.onclick = () => { chosenArm = arm; buildSetup(); };
+    sz.appendChild(b);
   });
   const seatList = seatsFor(chosenCount);
   const nm = document.getElementById('names');
@@ -147,13 +162,15 @@ function buildSetup() {
 function seatsFor(n) { return n === 2 ? [0, 2] : n === 3 ? [0, 1, 2] : [0, 1, 2, 3]; }
 
 document.getElementById('start').onclick = () => {
+  configure(chosenArm);
+  document.getElementById('board').style.gridTemplate = `repeat(${N}, 1fr) / repeat(${N}, 1fr)`;
   seats = seatsFor(chosenCount);
   names = {};
   document.querySelectorAll('#names input').forEach((inp, i) => {
     names[seats[i]] = inp.value.trim() || COLOR_NAMES[seats[i]];
   });
   pieces = {};
-  seats.forEach(s => pieces[s] = [-1, -1, -1, -1]);
+  seats.forEach(s => pieces[s] = Array(A).fill(-1));
   cur = seats[0]; die = 0; phase = 'roll'; tries = 3; moves = [];
   document.getElementById('setup').style.display = 'none';
   document.getElementById('game').style.display = 'block';
@@ -179,9 +196,9 @@ function legalMoves(s, d) {
       t = 0;
     } else {
       t = r + d;
-      if (t > 43) return;
+      if (t > T + A - 1) return;
       // Im Zielhaus nicht überspringen
-      for (let x = r + 1; x <= t; x++) if (x >= 40 && own.includes(x)) return;
+      for (let x = r + 1; x <= t; x++) if (x >= T && own.includes(x)) return;
     }
     if (own.includes(t)) return;
     res.push({ k, to: t });
@@ -207,7 +224,7 @@ function roll() {
     if (moves.length) {
       phase = 'move';
     } else {
-      const onTrack = pieces[cur].some(r => r >= 0 && r < 40);
+      const onTrack = pieces[cur].some(r => r >= 0 && r < T);
       if (!onTrack && tries > 1) {
         tries--;
         phase = 'roll';
@@ -229,16 +246,16 @@ function move(k) {
   if (!m) return;
   const s = cur;
   pieces[s][k] = m.to;
-  if (m.to < 40) {
+  if (m.to < T) {
     const a = absIdx(s, m.to);
     seats.forEach(o => {
       if (o === s) return;
       pieces[o].forEach((r, j) => {
-        if (r >= 0 && r < 40 && absIdx(o, r) === a) pieces[o][j] = -1;
+        if (r >= 0 && r < T && absIdx(o, r) === a) pieces[o][j] = -1;
       });
     });
   }
-  if (pieces[s].every(r => r >= 40)) { finish(s); return; }
+  if (pieces[s].every(r => r >= T)) { finish(s); return; }
   moves = [];
   if (die === 6) { phase = 'roll'; tries = 1; render(); }
   else nextPlayer();
@@ -276,11 +293,11 @@ function render(keepStatus) {
     return d;
   };
   PATH.forEach(([r, c], i) => {
-    if (i % 10 === 0) mk(r, c, 'track start', LIGHT[i / 10]);
+    if (i % L === 0) mk(r, c, 'track start', LIGHT[i / L]);
     else mk(r, c, 'track');
   });
   HOME.forEach((lane, s) => lane.forEach(([r, c]) => mk(r, c, 'home', LIGHT[s])));
-  for (let s = 0; s < 4; s++) for (let k = 0; k < 4; k++) {
+  for (let s = 0; s < 4; s++) for (let k = 0; k < A; k++) {
     const [r, c] = yardCell(s, k);
     mk(r, c, 'yard', LIGHT[s]);
   }
