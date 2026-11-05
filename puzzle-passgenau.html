@@ -322,7 +322,7 @@ const RANKS=[
   {min:2400,name:'Puzzle-Legende', emoji:'👑'},
 ];
 function rankOf(p){let r=0;RANKS.forEach((x,i)=>{if(p>=x.min)r=i;});return r;}
-const ALLE_LEVEL_OFFEN=true; // zum Testen: auf false setzen, dann wird wieder Schritt für Schritt freigeschaltet
+const ALLE_LEVEL_OFFEN=false; // zum Testen: auf false setzen, dann wird wieder Schritt für Schritt freigeschaltet
 const unlockedUpTo=()=>{if(ALLE_LEVEL_OFFEN)return LEVELS.length-1; let n=0;while(n<LEVELS.length-1 && save.stars[n])n++;return n;};
 
 /* ============================================================
