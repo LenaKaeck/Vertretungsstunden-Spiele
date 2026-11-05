@@ -85,18 +85,42 @@
     /* ---------- Mitte ---------- */
     #center { grid-area: center; display: flex; align-items: center; justify-content: center; padding: 8px; min-height: 0; }
     #cbox {
-      background: #fff; border: 4px solid #222; border-radius: 18px; padding: 14px 18px;
-      width: min(100%, 560px); max-height: 100%; overflow-y: auto; text-align: center;
-      box-shadow: 0 6px 0 rgba(0,0,0,.18);
+      width: min(100%, 640px); max-height: 100%; text-align: center;
+      display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px;
     }
+    #cbox .mid {
+      grid-area: 2 / 2; background: #fff; border: 4px solid #222; border-radius: 18px; padding: 10px 14px;
+      overflow-y: auto; box-shadow: 0 6px 0 rgba(0,0,0,.18);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .pbox {
+      background: #fff; border: 4px solid #222; border-radius: 14px; padding: 6px 12px;
+      font-weight: 800; color: #3949ab; line-height: 1.2; font-size: clamp(.95rem, 3vmin, 1.5rem);
+      display: flex; align-items: center; justify-content: center; text-align: center;
+      box-shadow: 0 4px 0 rgba(0,0,0,.15);
+    }
+    .pbox.bottom { grid-area: 3 / 2; }
+    .pbox.top { grid-area: 1 / 2; transform: rotate(180deg); }
+    .pbox.left { grid-area: 2 / 1; writing-mode: vertical-rl; max-width: 22vmin; }
+    .pbox.right { grid-area: 2 / 3; writing-mode: vertical-rl; transform: rotate(180deg); max-width: 22vmin; }
     #cbox .lbl { font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; color: #777; font-weight: 700; }
     #cbox .cat { font-size: clamp(1.2rem, 4.2vmin, 2.1rem); font-weight: 800; margin: 6px 0 10px; line-height: 1.2; color: #3949ab; }
-    #cbox.cd { overflow: hidden; }
+    #cbox.countdown .mid { overflow: hidden; }
+    #cbox .btns { display: flex; flex-wrap: wrap; justify-content: center; }
+    #cbox.judge .mid { padding: 6px 8px; }
+    #cbox.judge .btn { font-size: .85rem; padding: 6px 10px; }
+    #cbox.judge .thrown .card { --cw: 38px; }
     #cbox .count { font-size: clamp(3rem, 12vmin, 6rem); font-weight: 900; line-height: 1.1; animation: pop .9s; }
     #cbox .msg { margin: 6px 0 10px; font-weight: 600; min-height: 1.3em; }
     #cbox .hint { font-size: .9rem; color: #555; margin-top: 6px; }
     #cbox .thrown { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 8px 0; }
-    #cbox .thrown .card { --cw: 70px; animation: pop .4s; }
+    #cbox .thrown .card { --cw: clamp(40px, 7vmin, 62px); animation: pop .4s; }
+    #cbox .thrown { margin: 2px 0; gap: 8px; }
+    #cbox .thrown .who { font-size: .85rem; }
+    #cbox.judge .lbl { display: none; }
+    #cbox.judge .cat { font-size: clamp(1rem, 3.2vmin, 1.6rem); }
+    #cbox .cat { margin: 2px 0 6px; }
+    #cbox button.btn { padding: 8px 14px; margin: 2px; }
     #cbox .thrown .who { text-align: left; font-weight: 700; }
     .linkbtn { background: none; border: 0; color: #777; text-decoration: underline; font-size: .85rem; margin-top: 8px; }
 
@@ -335,7 +359,7 @@
         '<div class="hand">' + p.hand.map(function (c) { return cardHtml(c, p, live); }).join('') + '</div>' +
         '</div></div>';
     });
-    h += '<div id="center"><div id="cbox"' + (S.phase === 'countdown' ? ' class="cd"' : '') + '>' + centerHtml() + '</div></div>';
+    h += '<div id="center"><div id="cbox" class="' + S.phase + '">' + centerHtml() + '</div></div>';
     $('game').innerHTML = h;
     layout();
   }
@@ -350,21 +374,25 @@
     } else if (ph === 'countdown') {
       h += '<div class="lbl">Macht euch bereit …</div><div class="count" id="cnt">' + S.count + '</div>';
     } else if (ph === 'open') {
-      h += '<div class="lbl">Kategorie</div><div class="cat">' + esc(S.cat) + '</div>' +
+      h += '<div class="lbl">Los!</div>' +
            '<div class="hint">Wer zuerst eine Karte klickt, nennt sein Wort!</div>' +
            '<button class="linkbtn" data-act="skip">Kategorie überspringen</button>';
     } else if (ph === 'judge') {
       var p = S.players[S.current.pid], c = S.current.card;
       var must = c.joker ? 'jedem beliebigen Buchstaben (Joker!)' :
         (c.l.indexOf('·') >= 0 ? 'einem dieser Buchstaben: <b>' + esc(c.l) + '</b>' : '<b>' + esc(c.l) + '</b>');
-      h += '<div class="lbl">Kategorie</div><div class="cat">' + esc(S.cat) + '</div>' +
-           '<div class="thrown">' + cardHtml(c, p, false) +
-           '<div class="who"><span style="color:' + p.color + '">' + esc(p.name) + '</span> nennt jetzt ein Wort,<br>das mit ' + must + ' beginnt.</div></div>' +
-           '<div class="lbl">Entscheidet gemeinsam:</div>' +
-           '<button class="btn green" data-act="ok">✅ Passt!</button>' +
-           '<button class="btn red" data-act="no">❌ Passt nicht</button>';
+      h += '<div class="thrown">' + cardHtml(c, p, false) +
+           '<div class="who"><span style="color:' + p.color + '">' + esc(p.name) + '</span> nennt ein Wort,<br>das mit ' + must + ' beginnt.</div></div>' +
+           '<div class="btns"><button class="btn green" data-act="ok">✅ Passt!</button>' +
+           '<button class="btn red" data-act="no">❌ Passt nicht</button></div>';
     }
-    return h;
+    // Jede Person bekommt einen eigenen Kategorie-Kasten, passend gedreht
+    var seats = SEATS[S.players.length], txt = (ph === 'open' || ph === 'judge') ? esc(S.cat) : '❓';
+    var boxes = '';
+    seats.forEach(function (seat, i) {
+      boxes += '<div class="pbox ' + seat + '" style="border-color:' + S.players[i].color + '">' + txt + '</div>';
+    });
+    return boxes + '<div class="mid">' + h + '</div>';
   }
 
   // Seitliche Panels drehen: Innenbox bekommt vertauschte Maße
