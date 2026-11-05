@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mühle</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 16px;
+      line-height: 1.4;
+      color: #222;
+      background: #f5f1e8;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.5rem; text-align: center; }
+    a.back { display: inline-block; margin-bottom: 8px; color: #555; }
+    button.btn {
+      font: inherit; font-weight: 600; padding: 10px 18px; border: 0; border-radius: 8px;
+      background: #3949ab; color: #fff; cursor: pointer; margin: 4px;
+    }
+    button.btn.sel { outline: 3px solid #222; }
+    button.btn.light { background: #8a7e63; }
+    #setup, #game { text-align: center; }
+    #game { display: none; }
+    #status { font-size: 1.1rem; font-weight: 600; margin: 8px 0; min-height: 2.8em; }
+    #info { display: flex; justify-content: space-around; gap: 8px; margin-bottom: 8px; font-size: .95rem; }
+    .pl { padding: 6px 12px; border-radius: 8px; border: 2px solid transparent; background: #ebe4d2; }
+    .pl.act { border-color: #222; background: #fff; }
+    .chip { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #222; vertical-align: -2px; margin-right: 4px; }
+    .chip.p0 { background: #fafafa; }
+    .chip.p1 { background: #2b2b2b; }
+    svg { width: 100%; height: auto; max-width: 600px; touch-action: manipulation; }
+    .line { stroke: #6b5f45; stroke-width: 6; stroke-linecap: round; fill: none; }
+    .spot { fill: #6b5f45; }
+    .hit { fill: transparent; cursor: pointer; }
+    .stone { stroke: #222; stroke-width: 3; }
+    .stone.p0 { fill: #fafafa; }
+    .stone.p1 { fill: #2b2b2b; }
+    .stone.canpick { cursor: pointer; animation: pulse .8s infinite alternate; transform-box: fill-box; transform-origin: center; }
+    .stone.sel { stroke: #e53935; stroke-width: 6; }
+    .stone.rem { stroke: #e53935; stroke-width: 6; cursor: pointer; animation: pulse .6s infinite alternate; transform-box: fill-box; transform-origin: center; }
+    .target { fill: #43a047; opacity: .75; }
+    .mill { stroke: #fdd835; stroke-width: 6; }
+    @keyframes pulse { to { transform: scale(1.12); } }
+    #win { display: none; margin-top: 12px; }
+    #win h2 { margin: 8px 0; }
+    .rules { text-align: left; max-width: 520px; margin: 16px auto 0; font-size: .95rem; background: #ebe4d2; padding: 8px 16px; border-radius: 10px; }
+    .rules summary { cursor: pointer; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <a class="back" href="index.html">← Zurück zur Übersicht</a>
+  <h1>Mühle</h1>
+
+  <div id="setup">
+    <p>Wie möchtest du spielen?</p>
+    <div id="mode">
+      <button class="btn sel" data-m="2">2 Personen</button>
+      <button class="btn" data-m="1">Gegen den Computer</button>
+    </div>
+    <p><button class="btn" id="start">Spiel starten</button></p>
+    <details class="rules">
+      <summary>Spielregeln</summary>
+      <p><b>1. Setzen:</b> Abwechselnd setzt jede Person ihre 9 Steine auf freie Punkte.</p>
+      <p><b>2. Ziehen:</b> Danach wird abwechselnd ein Stein entlang einer Linie auf einen freien Nachbarpunkt gezogen.</p>
+      <p><b>3. Mühle:</b> Wer drei Steine in einer Reihe (auf einer Linie) hat, darf einen Stein des Gegners entfernen – aber keinen aus einer Mühle, außer es gibt nur noch Mühlen-Steine.</p>
+      <p><b>4. Springen:</b> Wer nur noch 3 Steine hat, darf mit ihnen auf jeden freien Punkt springen.</p>
+      <p><b>Gewonnen</b> hat, wer dem Gegner bis auf 2 Steine abnimmt oder ihn so einsperrt, dass er nicht ziehen kann.</p>
+    </details>
+  </div>
+
+  <div id="game">
+    <div id="info"></div>
+    <div id="status"></div>
+    <svg id="svg" viewBox="0 0 600 600"></svg>
+    <div id="win">
+      <h2 id="winText"></h2>
+      <button class="btn" id="again">Nochmal spielen</button>
+      <button class="btn light" id="menu">Zurück zum Start</button>
+    </div>
+    <p><button class="btn light" id="restart">Neu starten</button></p>
+  </div>
+
+<script>
+(function () {
+  // Punkte: Ring r (0 außen) * 8 + Position p (0 oben links, im Uhrzeigersinn)
+  var COORD = [];
+  var RING_POS = [[0, 3, 6], [1, 3, 5], [2, 3, 4]];
+  for (var r = 0; r < 3; r++) {
+    var a = RING_POS[r][0], m = RING_POS[r][1], z = RING_POS[r][2];
+    COORD.push([a, a], [m, a], [z, a], [z, m], [z, z], [m, z], [a, z], [a, m]);
+  }
+  var MILLS = [], NEIGH = [];
+  var i, p;
+  for (r = 0; r < 3; r++) {
+    for (var s = 0; s < 4; s++) {
+      MILLS.push([r * 8 + 2 * s, r * 8 + 2 * s + 1, r * 8 + (2 * s + 2) % 8]);
+    }
+  }
+  for (p = 1; p < 8; p += 2) MILLS.push([p, 8 + p, 16 + p]);
+  for (i = 0; i < 24; i++) NEIGH.push([]);
+  for (r = 0; r < 3; r++) for (p = 0; p < 8; p++) {
+    NEIGH[r * 8 + p].push(r * 8 + (p + 1) % 8, r * 8 + (p + 7) % 8);
+    if (p % 2 === 1) {
+      if (r > 0) NEIGH[r * 8 + p].push((r - 1) * 8 + p);
+      if (r < 2) NEIGH[r * 8 + p].push((r + 1) * 8 + p);
+    }
+  }
+  var MILLS_OF = [];
+  for (i = 0; i < 24; i++) MILLS_OF.push(MILLS.filter(function (m) { return m.indexOf(i) >= 0; }));
+
+  var NAMES = ['Weiß', 'Schwarz'];
+  var mode = 2, st, over = false, aiTimer = null;
+  var svg = document.getElementById('svg');
+  var NS = 'http://www.w3.org/2000/svg';
+
+  function px(c) { return 50 + c * megaUnit(); }
+  function megaUnit() { return 500 / 6; }
+
+  function inMill(b, pt, pl) {
+    return MILLS_OF[pt].some(function (m) { return m.every(function (q) { return b[q] === pl; }); });
+  }
+  function count(b, pl) { return b.filter(function (x) { return x === pl; }).length; }
+  function total(s, pl) { return count(s.b, pl) + s.hand[pl]; }
+
+  function movesFor(s, pl) {
+    var res = [], q, f;
+    if (s.hand[pl] > 0) {
+      for (q = 0; q < 24; q++) if (s.b[q] === null) res.push({ to: q });
+      return res;
+    }
+    var fly = count(s.b, pl) === 3;
+    for (f = 0; f < 24; f++) {
+      if (s.b[f] !== pl) continue;
+      if (fly) {
+        for (q = 0; q < 24; q++) if (s.b[q] === null) res.push({ from: f, to: q });
+      } else {
+        NEIGH[f].forEach(function (n) { if (s.b[n] === null) res.push({ from: f, to: n }); });
+      }
+    }
+    return res;
+  }
+
+  function removable(b, opp) {
+    var all = [], free = [];
+    for (var q = 0; q < 24; q++) if (b[q] === opp) {
+      all.push(q);
+      if (!inMill(b, q, opp)) free.push(q);
+    }
+    return free.length ? free : all;
+  }
+
+  function newGame() {
+    clearTimeout(aiTimer);
+    over = false;
+    st = { b: Array(24).fill(null), hand: [9, 9], turn: 0, from: null, removing: false, lastMill: null, msg: '' };
+    document.getElementById('win').style.display = 'none';
+    beginTurn();
+  }
+
+  function isAI(pl) { return mode === 1 && pl === 1; }
+
+  function beginTurn() {
+    var pl = st.turn;
+    st.from = null; st.removing = false;
+    if (total(st, pl) < 3) return finish(1 - pl, NAMES[pl] + ' hat nur noch 2 Steine.');
+    if (movesFor(st, pl).length === 0) return finish(1 - pl, NAMES[pl] + ' kann sich nicht mehr bewegen.');
+    render();
+    if (isAI(pl)) aiTimer = setTimeout(aiMove, 700);
+  }
+
+  function finish(winner, why) {
+    over = true;
+    render();
+    var w = document.getElementById('win');
+    w.style.display = 'block';
+    document.getElementById('winText').textContent = '🎉 ' + NAMES[winner] + ' gewinnt! ' + why;
+  }
+
+  // Zug ausführen (ohne Entfernen). Gibt true zurück, wenn eine Mühle entstand.
+  function applyMove(s, pl, mv) {
+    if (mv.from === undefined) s.hand[pl]--;
+    else s.b[mv.from] = null;
+    s.b[mv.to] = pl;
+    return inMill(s.b, mv.to, pl);
+  }
+
+  function afterMove(madeMill) {
+    var pl = st.turn;
+    if (madeMill) {
+      st.removing = true;
+      st.msg = 'Mühle! Entferne einen Stein von ' + NAMES[1 - pl] + '.';
+      render();
+      if (isAI(pl)) aiTimer = setTimeout(aiRemove, 700);
+    } else {
+      endTurn();
+    }
+  }
+
+  function endTurn() {
+    st.turn = 1 - st.turn;
+    st.msg = '';
+    beginTurn();
+  }
+
+  function doRemove(q) {
+    var pl = st.turn;
+    st.b[q] = null;
+    endTurn();
+  }
+
+  // ---------- Computer ----------
+  function evalMove(s, pl, mv) {
+    var c = { b: s.b.slice(), hand: s.hand.slice() };
+    var opp = 1 - pl, score = Math.random();
+    var madeMill = applyMove(c, pl, mv);
+    if (madeMill) score += 10;
+    // blockiert gegnerische Mühle?
+    var orig = s.b.slice();
+    var o = orig.slice(); o[mv.to] = opp;
+    if (mv.from === undefined || true) {
+      if (inMill(o, mv.to, opp)) score += 7;
+    }
+    // offene Zweier-Reihen
+    MILLS_OF[mv.to].forEach(function (m) {
+      var mine = 0, empty = 0, theirs = 0;
+      m.forEach(function (q) { if (c.b[q] === pl) mine++; else if (c.b[q] === null) empty++; else theirs++; });
+      if (mine === 2 && empty === 1) score += 2;
+      if (theirs === 0 && mine === 1) score += .5;
+    });
+    // Beweglichkeit
+    score += NEIGH[mv.to].filter(function (n) { return c.b[n] === null; }).length * .4;
+    // nicht eigene Mühle auflösen, die man gleich wieder schließen könnte
+    if (mv.from !== undefined && inMill(s.b, mv.from, pl)) score -= .5;
+    return score;
+  }
+
+  function aiMove() {
+    if (over) return;
+    var pl = st.turn, ms = movesFor(st, pl), best = null, bs = -1e9;
+    ms.forEach(function (mv) {
+      var sc = evalMove(st, pl, mv);
+      if (sc > bs) { bs = sc; best = mv; }
+    });
+    var made = applyMove(st, pl, best);
+    st.lastMill = null;
+    afterMove(made);
+  }
+
+  function aiRemove() {
+    if (over) return;
+    var pl = st.turn, opp = 1 - pl, cand = removable(st.b, opp), best = cand[0], bs = -1e9;
+    cand.forEach(function (q) {
+      var sc = Math.random();
+      MILLS_OF[q].forEach(function (m) {
+        var theirs = 0, empty = 0;
+        m.forEach(function (x) { if (st.b[x] === opp) theirs++; else if (st.b[x] === null) empty++; });
+        if (theirs === 2 && empty === 1) sc += 4;
+        if (theirs === 3) sc += 1;
+      });
+      sc += NEIGH[q].filter(function (n) { return st.b[n] === null; }).length * .5;
+      if (sc > bs) { bs = sc; best = q; }
+    });
+    doRemove(best);
+  }
+
+  // ---------- Anzeige ----------
+  function el(name, attrs, parent) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  function render() {
+    var pl = st.turn, human = !isAI(pl) && !over;
+    svg.innerHTML = '';
+    // Linien
+    for (var r = 0; r < 3; r++) {
+      var a = px(RING_POS[r][0]), z = px(RING_POS[r][2]);
+      el('rect', { x: a, y: a, width: z - a, height: z - a, class: 'line' }, svg);
+    }
+    el('line', { x1: px(3), y1: px(0), x2: px(3), y2: px(2), class: 'line' }, svg);
+    el('line', { x1: px(3), y1: px(4), x2: px(3), y2: px(6), class: 'line' }, svg);
+    el('line', { x1: px(0), y1: px(3), x2: px(2), y2: px(3), class: 'line' }, svg);
+    el('line', { x1: px(4), y1: px(3), x2: px(6), y2: px(3), class: 'line' }, svg);
+
+    // Mühlen hervorheben
+    MILLS.forEach(function (m) {
+      [0, 1].forEach(function (c) {
+        if (m.every(function (q) { return st.b[q] === c; })) {
+          el('line', {
+            x1: px(COORD[m[0]][0]), y1: px(COORD[m[0]][1]),
+            x2: px(COORD[m[2]][0]), y2: px(COORD[m[2]][1]), class: 'line mill'
+          }, svg);
+        }
+      });
+    });
+
+    var targets = [], pickable = [], remov = [];
+    if (human) {
+      if (st.removing) remov = removable(st.b, 1 - pl);
+      else if (st.hand[pl] > 0) targets = movesFor(st, pl).map(function (m) { return m.to; });
+      else if (st.from !== null) targets = movesFor(st, pl).filter(function (m) { return m.from === st.from; }).map(function (m) { return m.to; });
+      else {
+        var seen = {};
+        movesFor(st, pl).forEach(function (m) { seen[m.from] = 1; });
+        pickable = Object.keys(seen).map(Number);
+      }
+    }
+
+    for (var q = 0; q < 24; q++) {
+      var x = px(COORD[q][0]), y = px(COORD[q][1]);
+      var c = st.b[q];
+      if (c === null) {
+        el('circle', { cx: x, cy: y, r: 9, class: 'spot' }, svg);
+        if (targets.indexOf(q) >= 0) el('circle', { cx: x, cy: y, r: 20, class: 'target' }, svg);
+      } else {
+        var cls = 'stone p' + c;
+        if (st.from === q) cls += ' sel';
+        if (pickable.indexOf(q) >= 0) cls += ' canpick';
+        if (remov.indexOf(q) >= 0) cls += ' rem';
+        el('circle', { cx: x, cy: y, r: 28, class: cls }, svg);
+      }
+      var hit = el('circle', { cx: x, cy: y, r: 36, class: 'hit' }, svg);
+      hit.setAttribute('data-q', q);
+    }
+
+    // Info & Status
+    var info = document.getElementById('info');
+    info.innerHTML = '';
+    for (var k = 0; k < 2; k++) {
+      var d = document.createElement('div');
+      d.className = 'pl' + (k === pl && !over ? ' act' : '');
+      d.innerHTML = '<span class="chip p' + k + '"></span><b>' + NAMES[k] + (isAI(k) ? ' (Computer)' : '') +
+        '</b><br>zu setzen: ' + st.hand[k] + ' · auf dem Brett: ' + count(st.b, k);
+      info.appendChild(d);
+    }
+    var s = document.getElementById('status');
+    if (over) s.textContent = 'Spiel beendet.';
+    else if (isAI(pl)) s.textContent = st.msg || 'Computer überlegt …';
+    else if (st.removing) s.textContent = st.msg;
+    else if (st.hand[pl] > 0) s.textContent = NAMES[pl] + ' ist dran: Setze einen Stein.';
+    else if (st.from !== null) s.textContent = NAMES[pl] + ': Wähle das Zielfeld.';
+    else s.textContent = NAMES[pl] + ' ist dran: Wähle einen Stein' + (count(st.b, pl) === 3 ? ' (du darfst springen!)' : '') + '.';
+  }
+
+  svg.addEventListener('click', function (e) {
+    if (over) return;
+    var q = e.target.getAttribute && e.target.getAttribute('data-q');
+    if (q === null || q === undefined) return;
+    q = Number(q);
+    var pl = st.turn;
+    if (isAI(pl)) return;
+    var opp = 1 - pl;
+
+    if (st.removing) {
+      if (removable(st.b, opp).indexOf(q) >= 0) doRemove(q);
+      return;
+    }
+    if (st.hand[pl] > 0) {
+      if (st.b[q] !== null) return;
+      afterMove(applyMove(st, pl, { to: q }));
+      return;
+    }
+    if (st.b[q] === pl) {
+      var any = movesFor(st, pl).some(function (m) { return m.from === q; });
+      st.from = any ? (st.from === q ? null : q) : null;
+      render();
+      return;
+    }
+    if (st.from !== null && st.b[q] === null) {
+      var ok = movesFor(st, pl).some(function (m) { return m.from === st.from && m.to === q; });
+      if (ok) afterMove(applyMove(st, pl, { from: st.from, to: q }));
+    }
+  });
+
+  document.querySelectorAll('#mode button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      mode = Number(b.getAttribute('data-m'));
+      document.querySelectorAll('#mode button').forEach(function (x) { x.classList.toggle('sel', x === b); });
+    });
+  });
+  function show(game) {
+    document.getElementById('setup').style.display = game ? 'none' : 'block';
+    document.getElementById('game').style.display = game ? 'block' : 'none';
+  }
+  document.getElementById('start').addEventListener('click', function () { show(true); newGame(); });
+  document.getElementById('again').addEventListener('click', newGame);
+  document.getElementById('restart').addEventListener('click', newGame);
+  document.getElementById('menu').addEventListener('click', function () { clearTimeout(aiTimer); show(false); });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Passgenau – Das Legepuzzle</title>
+<style>
+  :root{
+    --bg1:#eef3ff; --bg2:#fdf1ff; --ink:#1f2540; --muted:#6b7394;
+    --card:#ffffff; --line:#d5dcf0; --accent:#5b6cff; --accent2:#ff8a3d;
+    --cell:#e6ebf7; --good:#2ecc71; --bad:#e74c3c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    color:var(--ink); min-height:100vh;
+    background:linear-gradient(135deg,var(--bg1),var(--bg2)) fixed;
+    -webkit-user-select:none; user-select:none;
+  }
+  button{font:inherit;cursor:pointer}
+  .hidden{display:none !important}
+
+  /* ---------- Kopfzeile ---------- */
+  header.top{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    padding:12px 18px; background:rgba(255,255,255,.75); backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  header.top h1{margin:0;font-size:1.3rem}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-weight:600;font-size:.95rem;white-space:nowrap}
+  a.back{color:var(--muted);text-decoration:none;font-size:.9rem}
+  a.back:hover{text-decoration:underline}
+
+  main{max-width:1100px;margin:0 auto;padding:16px}
+
+  /* ---------- Menü ---------- */
+  .rank-box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 18px;margin-bottom:16px}
+  .rank-box .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .rank-emoji{font-size:2.2rem}
+  .bar{height:12px;background:#e6e9f5;border-radius:99px;overflow:hidden;margin-top:8px}
+  .bar>div{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;transition:width .6s}
+  .howto{background:#fff9e8;border:1px solid #f3dfa3;border-radius:14px;padding:10px 16px;margin-bottom:16px;font-size:.95rem;line-height:1.5}
+  .levels{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .lv{
+    background:var(--card);border:2px solid var(--line);border-radius:16px;padding:12px;text-align:center;
+    transition:transform .12s, box-shadow .12s;
+  }
+  .lv:hover:not(.locked){transform:translateY(-3px);box-shadow:0 6px 16px rgba(60,70,140,.15);border-color:var(--accent)}
+  .lv .n{font-size:1.9rem;font-weight:800;color:var(--accent)}
+  .lv .nm{font-weight:600}
+  .lv .meta{font-size:.82rem;color:var(--muted)}
+  .lv .st{font-size:1.2rem;letter-spacing:2px;margin-top:4px;min-height:1.5rem}
+  .lv.locked{opacity:.5;cursor:not-allowed}
+  .reset-link{margin-top:18px;text-align:center}
+  .reset-link button{background:none;border:none;color:var(--muted);text-decoration:underline;font-size:.85rem}
+
+  /* ---------- Spiel ---------- */
+  .gamebar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .gamebar .title{font-size:1.2rem;font-weight:800}
+  .btn{
+    border:1px solid var(--line);background:var(--card);border-radius:12px;padding:8px 14px;font-weight:600;
+    transition:transform .1s, background .15s;
+  }
+  .btn:hover{background:#f1f4ff}
+  .btn:active{transform:scale(.96)}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.primary:hover{background:#4757ee}
+  .btn.hint{background:#fff6dc;border-color:#f0d27a}
+  .btn.hint:hover{background:#ffeebb}
+  .game{display:flex;gap:22px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+  .board-wrap{position:relative;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:0 6px 20px rgba(60,70,140,.1)}
+  #board{display:block;touch-action:none}
+  .side{flex:1 1 280px;min-width:260px;max-width:480px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px 14px}
+  .panel h3{margin:0 0 8px;font-size:1rem;color:var(--muted);font-weight:700}
+  #msg{min-height:1.6em;font-weight:600;color:var(--accent);margin:0 0 8px;font-size:.95rem}
+  #tray{display:flex;flex-wrap:wrap;gap:10px}
+  .card{
+    background:#f7f9ff;border:2px solid var(--line);border-radius:14px;padding:8px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;transition:border-color .12s, background .12s;
+  }
+  .card.sel{border-color:var(--accent);background:#eceeff;box-shadow:0 0 0 3px rgba(91,108,255,.2)}
+  .card .pc{touch-action:none;cursor:grab;display:flex;align-items:center;justify-content:center;padding:4px}
+  .card .pc:active{cursor:grabbing}
+  .card .acts{display:flex;gap:6px}
+  .card .acts button{
+    border:1px solid var(--line);background:#fff;border-radius:9px;padding:3px 9px;font-size:1.05rem;line-height:1.2;
+  }
+  .card .acts button:hover{background:#e6ebff}
+  .card.gone{visibility:hidden}
+  .empty-tray{color:var(--muted);font-size:.9rem;padding:6px}
+  .keys{font-size:.8rem;color:var(--muted);margin-top:8px}
+  #float{position:fixed;left:0;top:0;pointer-events:none;z-index:50;opacity:.92;filter:drop-shadow(0 6px 8px rgba(0,0,0,.3))}
+
+  /* Tipp-Blinken: Umriss langsam ein- und ausblenden */
+  .hintline{animation:hintPulse 1.9s ease-in-out 3 both}
+  @keyframes hintPulse{0%{opacity:0}50%{opacity:1}100%{opacity:0}}
+  .shake{animation:shake .35s}
+  @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+  /* ---------- Overlay ---------- */
+  #overlay{position:fixed;inset:0;background:rgba(25,30,70,.55);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+  .modal{background:#fff;border-radius:22px;padding:26px 28px;max-width:420px;width:100%;text-align:center;animation:pop .35s cubic-bezier(.2,1.4,.4,1)}
+  @keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+  .modal h2{margin:0 0 6px;font-size:1.7rem}
+  .stars{font-size:3rem;letter-spacing:6px;margin:6px 0}
+  .stars span{display:inline-block;opacity:.25;filter:grayscale(1)}
+  .stars span.on{opacity:1;filter:none;animation:starIn .5s both}
+  @keyframes starIn{from{transform:scale(0) rotate(-120deg)}to{transform:scale(1) rotate(0)}}
+  .modal .pts{font-size:1.15rem;margin:6px 0}
+  .modal .rankup{background:linear-gradient(90deg,#fff3c4,#ffe0f0);border-radius:12px;padding:8px;margin:10px 0;font-weight:700}
+  .modal .btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:120}
+
+  @media (max-width:760px){
+    .game{flex-direction:column;align-items:center}
+    .side{width:100%;max-width:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <h1>🧩 Passgenau</h1>
+    <a class="back" href="index.html">← zur Spieleauswahl</a>
+  </div>
+  <div class="chips">
+    <span class="chip" id="chipRank"></span>
+    <span class="chip" id="chipPts"></span>
+  </div>
+</header>
+
+<main>
+  <!-- ========== MENÜ ========== -->
+  <section id="menu">
+    <div class="rank-box">
+      <div class="row">
+        <div class="rank-emoji" id="rankEmoji"></div>
+        <div style="flex:1;min-width:200px">
+          <div style="font-weight:800;font-size:1.15rem" id="rankName"></div>
+          <div style="color:var(--muted);font-size:.9rem" id="rankNext"></div>
+          <div class="bar"><div id="rankBar"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="howto">
+      <b>So geht's:</b> Lege <b>alle Teile</b> so in das graue Feld, dass <b>keine freie Fläche</b> mehr zu sehen ist.<br>
+      Teile ziehen (oder antippen und dann aufs Feld tippen). Mit <b>↻</b> drehst du ein Teil, mit <b>⇆</b> spiegelst du es – ohne Spiegeln klappt es ab Level 2 nicht!<br>
+      Brauchst du Hilfe? Der <b>💡 Tipp</b> lässt den Umriss eines Teils langsam aufblinken – kostet aber Punkte und Sterne.
+    </div>
+    <div class="levels" id="levels"></div>
+    <div class="reset-link"><button id="resetAll">Spielstand zurücksetzen</button></div>
+  </section>
+
+  <!-- ========== SPIEL ========== -->
+  <section id="game" class="hidden">
+    <div class="gamebar">
+      <div>
+        <div class="title" id="gTitle"></div>
+        <div style="color:var(--muted);font-size:.9rem" id="gSub"></div>
+      </div>
+      <div class="chips">
+        <span class="chip" id="chipTime">⏱ 0:00</span>
+        <span class="chip" id="chipHints">💡 0</span>
+        <button class="btn hint" id="btnHint">💡 Tipp</button>
+        <button class="btn" id="btnRestart">↺ Neu starten</button>
+        <button class="btn" id="btnMenu">☰ Menü</button>
+      </div>
+    </div>
+    <div class="game">
+      <div class="board-wrap" id="boardWrap">
+        <svg id="board"></svg>
+      </div>
+      <div class="side">
+        <div class="panel">
+          <h3>Deine Teile</h3>
+          <div id="msg"></div>
+          <div id="tray"></div>
+          <div class="keys">Tastatur: <b>R</b> = drehen, <b>F</b> = spiegeln (auch beim Ziehen). Gelegtes Teil anfassen = wieder aufnehmen.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="overlay" class="hidden"></div>
+<canvas id="confetti"></canvas>
+<div id="float" class="hidden"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   Hilfsfunktionen: Formen
+   ============================================================ */
+const key = (x,y)=>x+','+y;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+function normalize(cells){
+  const mx=Math.min(...cells.map(c=>c[0])), my=Math.min(...cells.map(c=>c[1]));
+  return cells.map(([x,y])=>[x-mx,y-my]).sort((a,b)=>a[1]-b[1]||a[0]-b[0]);
+}
+const rot = cells => normalize(cells.map(([x,y])=>[-y,x]));      // 90° im Uhrzeigersinn
+const flip = cells => normalize(cells.map(([x,y])=>[-x,y]));     // spiegeln
+const ser = cells => cells.map(c=>c[0]+','+c[1]).join(';');
+function bbox(cells){return {w:Math.max(...cells.map(c=>c[0]))+1, h:Math.max(...cells.map(c=>c[1]))+1}}
+function rotKey(cells){ // kleinster Schlüssel über alle 4 Drehungen
+  let c=normalize(cells), best=null;
+  for(let i=0;i<4;i++){const s=ser(c); if(best===null||s<best)best=s; c=rot(c);}
+  return best;
+}
+const canon = cells => { const a=rotKey(cells), b=rotKey(flip(normalize(cells))); return a<b?a:b; };
+const isChiral = cells => rotKey(cells)!==rotKey(flip(normalize(cells)));
+
+/* ============================================================
+   Level-Definitionen (Felder + Teilegröße)
+   ============================================================ */
+function rect(w,h){const rows=[];for(let y=0;y<h;y++)rows.push('#'.repeat(w));return rows;}
+const LEVELS = [
+  {name:'Aufwärmen',      rows:rect(3,3), min:3,max:3, seed:1, chiral:0, dup:9},
+  {name:'Kleine Kiste',   rows:rect(4,4), min:4,max:4, seed:2, chiral:1, dup:2},
+  {name:'Rechteck',       rows:rect(5,4), min:4,max:5, seed:3, chiral:1, dup:1},
+  {name:'Abgeschnitten',  rows:['.###.','#####','#####','#####','.###.'], min:4,max:5, seed:4, chiral:2, dup:1},
+  {name:'Großes Feld',    rows:rect(6,5), min:4,max:6, seed:5, chiral:2, dup:1},
+  {name:'Das Kreuz',      rows:['..###..','..###..','#######','#######','#######','..###..','..###..'], min:4,max:6, seed:6, chiral:3, dup:1},
+  {name:'Mit Loch',       rows:['######','######','##..##','##..##','######','######'], min:4,max:6, seed:7, chiral:3, dup:1},
+  {name:'Achteck',        rows:['..###..','.#####.','#######','#######','#######','.#####.','..###..'], min:5,max:6, seed:8, chiral:3, dup:1},
+  {name:'Die Gabel',      rows:['###.###.###','###.###.###','###########','###########','.#########.'], min:5,max:6, seed:9, chiral:4, dup:1},
+  {name:'Meisterstück',   rows:['########','########','##.##.##','########','########','########'], min:5,max:7, seed:10, chiral:4, dup:1},
+  {name:'Treppe',         rows:['#######','#######','######.','#####..','####...'], min:4,max:6, seed:11, chiral:3, dup:1},
+  {name:'Der Rahmen',     rows:['#######','#######','##...##','##...##','##...##','#######','#######'], min:5,max:6, seed:12, chiral:4, dup:1},
+  {name:'Großes T',       rows:['#########','#########','...###...','...###...','...###...','...###...'], min:4,max:6, seed:13, chiral:3, dup:1},
+  {name:'Herz',           rows:['.##.##.','#######','#######','.#####.','..###..','...#...'], min:4,max:5, seed:14, chiral:3, dup:1},
+  {name:'Zickzack',       rows:['######..','######..','..######','..######','######..','######..'], min:5,max:6, seed:15, chiral:4, dup:1},
+  {name:'Riesenquadrat',  rows:rect(7,7), min:5,max:7, seed:16, chiral:5, dup:2},
+  {name:'Vier Fenster',   rows:['###.###.###','###.###.###','###########','###.###.###','###.###.###'], min:5,max:7, seed:17, chiral:5, dup:2},
+  {name:'Pfeil',          rows:['...#...','..###..','.#####.','#######','..###..','..###..','..###..'], min:4,max:5, seed:18, chiral:3, dup:1},
+  {name:'Die Arena',      rows:['.######.','########','########','########','########','########','########','.######.'], min:5,max:7, seed:19, chiral:5, dup:2},
+  {name:'Großfinale',     rows:['#########','#########','#########','###...###','###...###','#########','#########','#########'], min:5,max:7, seed:20, chiral:6, dup:2},
+];
+const COLORS=['#ef5350','#42a5f5','#66bb6a','#ffca28','#ab47bc','#ff7043','#26c6da','#8d6e63','#ec407a','#9ccc65','#5c6bc0','#26a69a'];
+
+function maskFromRows(rows){
+  const set=new Set();
+  rows.forEach((r,y)=>[...r].forEach((ch,x)=>{if(ch==='#')set.add(key(x,y));}));
+  return {w:Math.max(...rows.map(r=>r.length)), h:rows.length, set};
+}
+
+/* Zufällige Zerlegung der Fläche in zusammenhängende Teile.
+   Weil die Teile aus der Fläche "herausgeschnitten" werden, ist jedes Level garantiert lösbar. */
+function partition(set,min,max,rng){
+  const free=new Set(set), parts=[];
+  const nb=(x,y)=>[[x+1,y],[x-1,y],[x,y+1],[x,y-1]].filter(([a,b])=>free.has(key(a,b)));
+  while(free.size){
+    let best=null,bs=99;
+    for(const k of free){const [x,y]=k.split(',').map(Number); const c=nb(x,y).length+rng()*0.9; if(c<bs){bs=c;best=[x,y];}}
+    free.delete(key(best[0],best[1]));
+    const region=[best];
+    const target=min+Math.floor(rng()*(max-min+1));
+    while(region.length<target){
+      const fr=[];
+      for(const [x,y] of region) for(const n of nb(x,y)) fr.push(n);
+      if(!fr.length)break;
+      let pick;
+      if(rng()<0.5){ // oft die "engste" Zelle nehmen, damit keine Reste übrig bleiben
+        let bb=99; for(const n of fr){const c=nb(n[0],n[1]).length+rng()*0.5; if(c<bb){bb=c;pick=n;}}
+      } else pick=fr[Math.floor(rng()*fr.length)];
+      free.delete(key(pick[0],pick[1])); region.push(pick);
+    }
+    if(region.length<min) return null;
+    parts.push(region);
+  }
+  return parts;
+}
+function generate(L,relax){
+  const mask=maskFromRows(L.rows);
+  for(let a=0;a<8000;a++){
+    const rng=mulberry32(L.seed*100003+a);
+    const parts=partition(mask.set,L.min,L.max,rng);
+    if(!parts)continue;
+    if(!relax){
+      const distinct=new Set(parts.map(canon)).size;
+      if(parts.length-distinct>L.dup)continue;
+      if(parts.filter(isChiral).length<L.chiral)continue;
+    }
+    return {mask,parts};
+  }
+  return relax?null:generate(L,true);
+}
+function buildLevel(i){
+  const L=LEVELS[i], g=generate(L), rng=mulberry32(L.seed*7+5);
+  let mirrorNext=true;
+  const pieces=g.parts.map((cells,idx)=>{
+    const sol=cells.map(c=>c.slice());
+    let shape=normalize(cells);
+    if(isChiral(shape)){ if(mirrorNext) shape=flip(shape); mirrorNext=!mirrorNext; }
+    const turns=1+Math.floor(rng()*3);
+    for(let t=0;t<turns;t++)shape=rot(shape);
+    return {id:idx,color:COLORS[idx%COLORS.length],sol,initShape:shape,shape,placed:null,size:cells.length};
+  });
+  // Reihenfolge im Ablagefach mischen
+  for(let k=pieces.length-1;k>0;k--){const j=Math.floor(rng()*(k+1));[pieces[k],pieces[j]]=[pieces[j],pieces[k]];}
+  // Feste Kachelgröße pro Level: längste Seite aller Teile (gilt für jede Drehung)
+  const slot=Math.max(...pieces.map(p=>{const b=bbox(p.shape);return Math.max(b.w,b.h);}));
+  return {index:i,def:L,mask:g.mask,pieces,slot};
+}
+
+/* ============================================================
+   Spielstand (localStorage)
+   ============================================================ */
+const SAVE_KEY='passgenau_v1';
+let save={stars:{},points:0};
+try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)||'null'); if(s&&s.stars)save=s;}catch(e){}
+function persist(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){}}
+const RANKS=[
+  {min:0,   name:'Puzzle-Neuling', emoji:'🐣'},
+  {min:200, name:'Tüftler',        emoji:'🔧'},
+  {min:600, name:'Knobel-Profi',   emoji:'🧩'},
+  {min:1300,name:'Denk-Meister',   emoji:'🧠'},
+  {min:2400,name:'Puzzle-Legende', emoji:'👑'},
+];
+function rankOf(p){let r=0;RANKS.forEach((x,i)=>{if(p>=x.min)r=i;});return r;}
+const ALLE_LEVEL_OFFEN=true; // zum Testen: auf false setzen, dann wird wieder Schritt für Schritt freigeschaltet
+const unlockedUpTo=()=>{if(ALLE_LEVEL_OFFEN)return LEVELS.length-1; let n=0;while(n<LEVELS.length-1 && save.stars[n])n++;return n;};
+
+/* ============================================================
+   Menü
+   ============================================================ */
+const $=id=>document.getElementById(id);
+function renderMenu(){
+  const r=rankOf(save.points), R=RANKS[r], N=RANKS[r+1];
+  $('rankEmoji').textContent=R.emoji; $('rankName').textContent=R.name;
+  $('rankNext').textContent=N?`Noch ${N.min-save.points} Punkte bis „${N.name}“ ${N.emoji}`:'Höchster Rang erreicht – Glückwunsch!';
+  $('rankBar').style.width=(N?Math.min(100,(save.points-R.min)/(N.min-R.min)*100):100)+'%';
+  $('chipRank').textContent=R.emoji+' '+R.name; $('chipPts').textContent='⭐ '+save.points+' Punkte';
+  const up=unlockedUpTo(), box=$('levels'); box.innerHTML='';
+  LEVELS.forEach((L,i)=>{
+    const locked=i>up, s=save.stars[i]||0;
+    const d=document.createElement('button'); d.className='lv'+(locked?' locked':'');
+    const cnt=Math.round(maskFromRows(L.rows).set.size/((L.min+L.max)/2));
+    d.innerHTML=`<div class="n">${locked?'🔒':i+1}</div><div class="nm">${L.name}</div>
+      <div class="meta">ca. ${cnt} Teile</div><div class="st">${s?'★'.repeat(s)+'☆'.repeat(3-s):'☆☆☆'}</div>`;
+    if(!locked)d.onclick=()=>startLevel(i);
+    box.appendChild(d);
+  });
+}
+$('resetAll').onclick=()=>{ if(confirm('Wirklich alle Sterne und Punkte löschen?')){save={stars:{},points:0};persist();renderMenu();} };
+
+/* ============================================================
+   Spiel
+   ============================================================ */
+let G=null;            // aktuelles Level
+let CS=48;             // Zellgröße Brett
+let TS=28;             // Zellgröße Ablage
+let selected=null;     // gewähltes Teil
+let drag=null;         // Ziehen-Zustand
+let hover=null;        // Vorschau {piece,x,y}
+let hintTimer=null, hintPiece=null;
+let timer=null, seconds=0, hints=0, finished=false, msgTimer=null;
+
+function startLevel(i){
+  G=buildLevel(i); selected=null; drag=null; hover=null; hints=0; seconds=0; finished=false; hintPiece=null;
+  $('menu').classList.add('hidden'); $('game').classList.remove('hidden');
+  $('gTitle').textContent=`Level ${i+1}: ${G.def.name}`;
+  $('gSub').textContent=`${G.pieces.length} Teile · Fläche: ${G.mask.set.size} Felder`;
+  $('overlay').classList.add('hidden');
+  clearInterval(timer); timer=setInterval(()=>{if(!finished){seconds++;updateChips();}},1000);
+  updateChips(); say(i===0?'Tippe ein Teil an und ziehe es auf das Feld!':'Viel Erfolg!',4000);
+  layout(); renderAll();
+}
+function updateChips(){
+  $('chipTime').textContent='⏱ '+Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
+  $('chipHints').textContent='💡 '+hints;
+}
+function say(t,ms=2600){
+  $('msg').textContent=t; clearTimeout(msgTimer);
+  if(ms)msgTimer=setTimeout(()=>{$('msg').textContent='';},ms);
+}
+function layout(){
+  if(!G)return;
+  const W=window.innerWidth, H=window.innerHeight, wide=W>760;
+  const maxW=wide?Math.min(W-380,720):W-60, maxH=wide?H-210:H*0.5;
+  CS=Math.max(26,Math.min(64,Math.floor(Math.min(maxW/G.mask.w,maxH/G.mask.h))));
+  TS=Math.max(18,Math.min(30,Math.round(CS*0.62)));
+}
+window.addEventListener('resize',()=>{layout();if(G&&!$('game').classList.contains('hidden'))renderAll();});
+
+const pieceById=id=>G.pieces.find(p=>p.id===id);
+function occupancy(except){
+  const occ=new Map();
+  for(const p of G.pieces){ if(!p.placed||p===except)continue;
+    for(const [x,y] of p.shape) occ.set(key(x+p.placed.x,y+p.placed.y),p); }
+  return occ;
+}
+function canPlace(p,tx,ty){
+  const occ=occupancy(p);
+  return p.shape.every(([x,y])=>{const k=key(x+tx,y+ty);return G.mask.set.has(k)&&!occ.has(k);});
+}
+
+/* ---------- Darstellung ---------- */
+function cellRect(x,y,cs,fill,extra=''){
+  return `<rect x="${x*cs+1.5}" y="${y*cs+1.5}" width="${cs-3}" height="${cs-3}" rx="${Math.max(3,cs*0.14)}" fill="${fill}" ${extra}/>`;
+}
+function pieceSVG(shape,cs,color){
+  const {w,h}=bbox(shape);
+  return `<svg width="${w*cs}" height="${h*cs}" viewBox="0 0 ${w*cs} ${h*cs}">`+
+    shape.map(([x,y])=>cellRect(x,y,cs,color,'stroke="rgba(0,0,0,.25)" stroke-width="1.2"')).join('')+
+    shape.map(([x,y])=>`<rect x="${x*cs+cs*0.2}" y="${y*cs+cs*0.2}" width="${cs*0.6}" height="${cs*0.18}" rx="${cs*0.09}" fill="rgba(255,255,255,.28)"/>`).join('')+
+    `</svg>`;
+}
+function hintPath(sol,cs){
+  const set=new Set(sol.map(c=>key(c[0],c[1]))), d=[];
+  for(const [x,y] of sol){
+    const X=x*cs, Y=y*cs;
+    if(!set.has(key(x,y-1)))d.push(`M${X} ${Y}L${X+cs} ${Y}`);
+    if(!set.has(key(x,y+1)))d.push(`M${X} ${Y+cs}L${X+cs} ${Y+cs}`);
+    if(!set.has(key(x-1,y)))d.push(`M${X} ${Y}L${X} ${Y+cs}`);
+    if(!set.has(key(x+1,y)))d.push(`M${X+cs} ${Y}L${X+cs} ${Y+cs}`);
+  }
+  return d.join('');
+}
+function renderBoard(){
+  const svg=$('board'), W=G.mask.w*CS, H=G.mask.h*CS;
+  svg.setAttribute('width',W); svg.setAttribute('height',H); svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  let s='';
+  for(const k of G.mask.set){const [x,y]=k.split(',').map(Number); s+=cellRect(x,y,CS,'var(--cell)','stroke="#c9d1e8" stroke-width="1"');}
+  for(const p of G.pieces){ if(!p.placed)continue;
+    for(const [x,y] of p.shape){
+      s+=cellRect(x+p.placed.x,y+p.placed.y,CS,p.color,'stroke="rgba(0,0,0,.28)" stroke-width="1.2"');
+      s+=`<rect x="${(x+p.placed.x)*CS+CS*0.2}" y="${(y+p.placed.y)*CS+CS*0.2}" width="${CS*0.6}" height="${CS*0.18}" rx="${CS*0.09}" fill="rgba(255,255,255,.28)"/>`;
+    } }
+  // Vorschau (Ghost)
+  if(hover){
+    const ok=canPlace(hover.piece,hover.x,hover.y);
+    for(const [x,y] of hover.piece.shape){
+      const cx=x+hover.x, cy=y+hover.y;
+      if(cx<0||cy<0||cx>=G.mask.w||cy>=G.mask.h)continue;
+      s+=cellRect(cx,cy,CS,ok?'rgba(46,204,113,.55)':'rgba(231,76,60,.5)');
+    }
+  }
+  // Tipp-Umriss
+  if(hintPiece){
+    const d=hintPath(hintPiece.sol,CS);
+    s+=`<g class="hintline"><path d="${d}" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/>`+
+       `<path d="${d}" fill="none" stroke="#ff7a00" stroke-width="5" stroke-linecap="round"/></g>`;
+  }
+  svg.innerHTML=s;
+}
+function renderTray(){
+  const tray=$('tray'); tray.innerHTML='';
+  const box=G.slot*TS+8;
+  for(const p of G.pieces){
+    const c=document.createElement('div'); c.className='card'+(p===selected?' sel':'');
+    if(p.placed) continue; // gelegte Teile verschwinden, der Rest rückt nach
+    c.innerHTML=`<div class="pc" data-id="${p.id}" style="width:${box}px;height:${box}px">${pieceSVG(p.shape,TS,p.color)}</div>
+      <div class="acts"><button title="Drehen (R)" data-a="rot">↻</button><button title="Spiegeln (F)" data-a="flip">⇆</button></div>`;
+    c.querySelector('.pc').addEventListener('pointerdown',e=>startDrag(e,p,null));
+    c.querySelector('[data-a=rot]').onclick=()=>{selected=p;transform(p,'rot');};
+    c.querySelector('[data-a=flip]').onclick=()=>{selected=p;transform(p,'flip');};
+    tray.appendChild(c);
+  }
+}
+function renderAll(){renderBoard();renderTray();}
+
+function transform(p,what){
+  p.shape = what==='rot'?rot(p.shape):flip(p.shape);
+  if(drag&&drag.piece===p&&drag.moved)updateFloat(drag.lastX,drag.lastY);
+  renderTray(); updateHoverFromLast();
+}
+
+/* ---------- Zeigen & Legen ---------- */
+function boardPos(clientX,clientY){
+  const r=$('board').getBoundingClientRect();
+  return {gx:(clientX-r.left)/CS, gy:(clientY-r.top)/CS};
+}
+function anchorFor(p,clientX,clientY){
+  const {gx,gy}=boardPos(clientX,clientY), {w,h}=bbox(p.shape);
+  return {x:Math.round(gx-w/2), y:Math.round(gy-h/2)};
+}
+function overBoard(clientX,clientY){
+  const r=$('board').getBoundingClientRect(), m=CS*0.6;
+  return clientX>=r.left-m&&clientX<=r.right+m&&clientY>=r.top-m&&clientY<=r.bottom+m;
+}
+let lastPtr={x:0,y:0};
+function updateHoverFromLast(){
+  const p=drag&&drag.moved?drag.piece:selected;
+  if(p&&!p.placed&&overBoard(lastPtr.x,lastPtr.y)&&(drag&&drag.moved||usingMouse)){
+    const a=anchorFor(p,lastPtr.x,lastPtr.y); hover={piece:p,x:a.x,y:a.y};
+  } else hover=null;
+  renderBoard();
+}
+let usingMouse=false;
+
+function place(p,tx,ty){
+  if(!canPlace(p,tx,ty))return false;
+  p.placed={x:tx,y:ty}; hover=null;
+  if(selected===p)selected=null;
+  if(hintPiece&&hintPiece===p){clearHint();}
+  renderAll();
+  if(G.pieces.every(q=>q.placed))win();
+  return true;
+}
+function badDrop(){
+  const w=$('boardWrap'); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake');
+  say('Hier passt es nicht – dreh oder spiegle das Teil und probier es anders.',3200);
+}
+
+function startDrag(e,p,fromPlacement){
+  if(finished)return;
+  e.preventDefault();
+  selected=p;
+  drag={piece:p,sx:e.clientX,sy:e.clientY,moved:false,from:fromPlacement,lastX:e.clientX,lastY:e.clientY,pid:e.pointerId};
+  lastPtr={x:e.clientX,y:e.clientY};
+  renderTray();
+}
+window.addEventListener('pointermove',e=>{
+  usingMouse = e.pointerType==='mouse';
+  lastPtr={x:e.clientX,y:e.clientY};
+  if(drag){
+    drag.lastX=e.clientX; drag.lastY=e.clientY;
+    if(!drag.moved && Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>6){
+      drag.moved=true; $('float').classList.remove('hidden');
+      requestAnimationFrame(autoScroll);
+    }
+    if(drag.moved){updateFloat(e.clientX,e.clientY);updateHoverFromLast();}
+  } else if(selected&&usingMouse&&G&&!finished){
+    updateHoverFromLast();
+  }
+});
+/* Automatisch scrollen, wenn ein Teil an den oberen/unteren Bildschirmrand gezogen wird */
+function autoScroll(){
+  if(!drag||!drag.moved)return;
+  const y=lastPtr.y, H=window.innerHeight, zone=Math.min(110,H*0.2), maxSpeed=22;
+  let dy=0;
+  if(y<zone) dy=-(zone-Math.max(y,0))/zone*maxSpeed;
+  else if(y>H-zone) dy=(Math.min(y,H)-(H-zone))/zone*maxSpeed;
+  if(dy){ window.scrollBy(0,dy); updateHoverFromLast(); }
+  requestAnimationFrame(autoScroll);
+}
+function updateFloat(x,y){
+  const f=$('float'), p=drag.piece;
+  f.innerHTML=pieceSVG(p.shape,CS,p.color);
+  const {w,h}=bbox(p.shape);
+  f.style.transform=`translate(${x-w*CS/2}px,${y-h*CS/2}px)`;
+}
+window.addEventListener('pointerup',e=>{
+  if(!drag)return;
+  const d=drag; drag=null; $('float').classList.add('hidden');
+  if(d.moved){
+    const a=anchorFor(d.piece,e.clientX,e.clientY);
+    if(overBoard(e.clientX,e.clientY)){
+      if(!place(d.piece,a.x,a.y)){
+        hover=null;
+        if(d.from&&canPlace(d.piece,d.from.x,d.from.y)){ d.piece.placed={x:d.from.x,y:d.from.y}; selected=null; }
+        else badDrop();
+        renderAll();
+      }
+    } else {
+      // losgelassen außerhalb: gelegtes Teil geht zurück, Ablage-Teil bleibt liegen
+      hover=null;
+      if(d.from) d.piece.placed={x:d.from.x,y:d.from.y};
+      renderAll();
+    }
+  } else { hover=null; renderAll(); }
+});
+window.addEventListener('pointercancel',()=>{ if(drag){ if(drag.from&&drag.moved) drag.piece.placed={...drag.from}; drag=null; $('float').classList.add('hidden'); hover=null; if(G)renderAll(); } });
+
+/* Brett: Teil aufnehmen oder ausgewähltes Teil setzen */
+$('board').addEventListener('pointerdown',e=>{
+  if(finished||!G)return;
+  e.preventDefault();
+  const {gx,gy}=boardPos(e.clientX,e.clientY);
+  const cx=Math.floor(gx), cy=Math.floor(gy);
+  const occ=occupancy(); const q=occ.get(key(cx,cy));
+  if(q){
+    const from={...q.placed};
+    q.placed=null; hover=null;
+    startDrag(e,q,from);
+    renderBoard();
+    return;
+  }
+  if(selected&&!selected.placed){
+    const a=anchorFor(selected,e.clientX,e.clientY);
+    if(!place(selected,a.x,a.y))badDrop();
+  } else say('Wähle zuerst ein Teil aus dem Ablagefach.',2500);
+});
+$('board').addEventListener('pointerleave',()=>{ if(!drag){hover=null;if(G)renderBoard();} });
+document.addEventListener('contextmenu',e=>{ if(drag){e.preventDefault(); transform(drag.piece,'rot');} });
+document.addEventListener('keydown',e=>{
+  if(!G||$('game').classList.contains('hidden')||finished)return;
+  const p=drag?drag.piece:selected; if(!p||p.placed)return;
+  const k=e.key.toLowerCase();
+  if(k==='r'){transform(p,'rot');}
+  else if(k==='f'){transform(p,'flip');}
+  else if(k==='escape'){selected=null;hover=null;renderAll();}
+});
+
+/* ---------- Tipp ---------- */
+function clearHint(){clearTimeout(hintTimer);hintPiece=null;}
+$('btnHint').onclick=()=>{
+  if(!G||finished)return;
+  const open=G.pieces.filter(p=>!p.placed);
+  if(!open.length)return;
+  const occ=occupancy();
+  const free=open.filter(p=>p.sol.every(([x,y])=>!occ.has(key(x,y))));
+  const pool=free.length?free:open;
+  // das Teil mit der größten Fläche zuerst – das hilft am meisten
+  let pick=pool.filter(p=>p!==hintPiece);
+  if(!pick.length)pick=pool;
+  hintPiece=pick[Math.floor(Math.random()*pick.length)];
+  hints++; updateChips();
+  say(free.length?'Schau auf den blinkenden Umriss – welches Teil passt dort hinein?':'Der Umriss liegt teils unter anderen Teilen – vielleicht musst du etwas umlegen.',6000);
+  renderBoard();
+  clearTimeout(hintTimer); const hp=hintPiece;
+  hintTimer=setTimeout(()=>{if(hintPiece===hp){hintPiece=null;renderBoard();}},5900);
+};
+$('btnRestart').onclick=()=>{ if(G)startLevel(G.index); };
+$('btnMenu').onclick=()=>{ leave(); };
+function leave(){
+  clearInterval(timer); clearHint(); drag=null; $('float').classList.add('hidden'); $('overlay').classList.add('hidden');
+  $('game').classList.add('hidden'); $('menu').classList.remove('hidden'); G=null; renderMenu();
+}
+
+/* ---------- Gewonnen! ---------- */
+function win(){
+  finished=true; clearInterval(timer); clearHint();
+  const stars = hints===0?3:(hints<=2?2:1);
+  const i=G.index;
+  const base=100+i*20;
+  const timeBonus=Math.max(0,Math.round((150-seconds)/3));
+  const pts=Math.max(20,base+timeBonus-hints*25);
+  const before=rankOf(save.points);
+  const prevStars=save.stars[i]||0;
+  save.stars[i]=Math.max(prevStars,stars);
+  // Punkte: volle Punkte beim ersten Lösen, danach nur noch Verbesserungen
+  const gain = prevStars===0?pts:Math.max(0,(stars-prevStars)*30);
+  save.points+=gain; persist();
+  const after=rankOf(save.points);
+  renderBoard();
+  setTimeout(()=>{
+    const last=i===LEVELS.length-1;
+    const ov=$('overlay');
+    ov.innerHTML=`<div class="modal">
+      <h2>${stars===3?'Perfekt! 🎉':stars===2?'Sehr gut! 👏':'Geschafft! 👍'}</h2>
+      <div style="color:var(--muted)">Level ${i+1} „${G.def.name}“ gelöst in ${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}</div>
+      <div class="stars">${[1,2,3].map(n=>`<span class="${n<=stars?'on':''}" style="animation-delay:${n*.25}s">⭐</span>`).join('')}</div>
+      <div class="pts">${gain>0?`<b>+${gain} Punkte</b>`:'Keine neuen Punkte (schon früher gelöst)'}${hints?` · ${hints} Tipp${hints>1?'s':''}`:' · ohne Tipp'}</div>
+      ${after>before?`<div class="rankup">Neuer Rang: ${RANKS[after].emoji} ${RANKS[after].name}!</div>`:''}
+      ${stars<3?`<div style="font-size:.85rem;color:var(--muted)">Drei Sterne gibt es ohne Tipp.</div>`:''}
+      ${last?'<div class="rankup">🏆 Alle Level geschafft!</div>':''}
+      <div class="btns">
+        ${last?'':'<button class="btn primary" id="oNext">Nächstes Level ▶</button>'}
+        <button class="btn" id="oAgain">Nochmal</button>
+        <button class="btn" id="oMenu">Menü</button>
+      </div></div>`;
+    ov.classList.remove('hidden');
+    if($('oNext'))$('oNext').onclick=()=>startLevel(i+1);
+    $('oAgain').onclick=()=>startLevel(i);
+    $('oMenu').onclick=leave;
+    confetti(stars===3?220:stars===2?140:80);
+  },650);
+}
+
+/* ---------- Konfetti ---------- */
+function confetti(n){
+  const cv=$('confetti'), ctx=cv.getContext('2d');
+  cv.width=innerWidth; cv.height=innerHeight;
+  const ps=Array.from({length:n},()=>({x:Math.random()*cv.width,y:-20-Math.random()*cv.height*0.5,
+    vx:(Math.random()-.5)*3,vy:2+Math.random()*4,s:5+Math.random()*7,r:Math.random()*6,vr:(Math.random()-.5)*.3,c:COLORS[Math.floor(Math.random()*COLORS.length)]}));
+  let frames=0;
+  (function tick(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    for(const p of ps){p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*0.6);ctx.restore();}
+    if(++frames<260)requestAnimationFrame(tick); else ctx.clearRect(0,0,cv.width,cv.height);
+  })();
+}
+
+renderMenu();
+</script>
+</body>
+</html>
