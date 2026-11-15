@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Lesebaustelle</title>
+<style>
+/* ===================== GRUNDLAGEN ===================== */
+:root{--y:#ffc928;--yd:#c99a00;--o:#ff8a1f;--od:#c25f00;--g:#4a4f57;--lg:#e9ebee;--b:#1d5fd1;--r:#d6312b;--gr:#2e9e4f;--ink:#222;--bg:#fff3bf;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);font-family:Verdana,Arial,Helvetica,sans-serif;color:var(--ink);overscroll-behavior:none}
+button{font-family:inherit;color:inherit;cursor:pointer}
+input,textarea,select{-webkit-user-select:text;user-select:text;font-family:inherit}
+#app{height:100%;display:flex;flex-direction:column}
+.tape{flex:none;height:14px;background:repeating-linear-gradient(-45deg,#222 0 14px,var(--y) 14px 28px)}
+#main{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
+.btn{min-height:64px;min-width:64px;border:0;border-radius:20px;padding:10px 22px;font-weight:700;font-size:clamp(20px,3.2vmin,30px);background:var(--y);box-shadow:0 6px 0 var(--yd);transition:transform .08s,box-shadow .08s;display:inline-flex;align-items:center;justify-content:center;gap:10px;line-height:1.1}
+.btn:active{transform:translateY(5px);box-shadow:0 1px 0 var(--yd)}
+.btn.big{min-height:clamp(84px,13vmin,120px);font-size:clamp(28px,5vmin,44px);width:100%}
+.btn.orange{background:var(--o);box-shadow:0 6px 0 var(--od);color:#fff}
+.btn.orange:active{box-shadow:0 1px 0 var(--od)}
+.btn.grey{background:var(--lg);box-shadow:0 6px 0 #aab0b7}
+.btn.green{background:#5fc57a;box-shadow:0 6px 0 #338a4d}
+.btn.sq{width:64px;padding:0;font-size:30px}
+.btn[disabled]{opacity:.4}
+.card{background:#fff;border:4px solid #222;border-radius:24px;box-shadow:0 6px 0 rgba(0,0,0,.2)}
+.hide{visibility:hidden!important;pointer-events:none}
+.nospeech .spk{display:none!important}
+.spk{min-width:64px;min-height:64px;border:0;border-radius:50%;background:var(--b);color:#fff;font-size:30px;box-shadow:0 5px 0 #123f94;flex:none}
+.spk:active{transform:translateY(4px);box-shadow:0 1px 0 #123f94}
+
+/* ===================== WÖRTER & SILBEN ===================== */
+.w{display:inline-block;font-weight:700;letter-spacing:.03em;border-radius:12px;white-space:nowrap}
+.sy{display:inline}
+.sy:nth-child(odd){color:var(--b)}
+.sy:nth-child(even){color:var(--r)}
+.w.one .sy,.nosyl .sy{color:var(--ink)}
+.sy.lit{background:#ffe066;border-radius:8px}
+.w.tap{padding:2px 6px;margin:0 -2px}
+.w.reading,.w.now{background:#fff0a0}
+.w.dim{opacity:.22}
+.w.big{font-size:clamp(48px,10vmin,96px)}
+
+/* ===================== OBERE LEISTE ===================== */
+.topbar{flex:none;display:flex;align-items:center;gap:12px;padding:8px 14px;background:var(--g);color:#fff;min-height:80px}
+.topbar .ttl{flex:1;font-size:clamp(20px,3.4vmin,30px);font-weight:700}
+.bricks{flex:1;display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.bricks i{display:block;width:clamp(22px,4vmin,38px);height:clamp(14px,2.4vmin,22px);border-radius:4px;background:#6b717a;border:2px solid #333}
+.bricks i.on{background:var(--o);border-color:#8a3d00}
+.starpill{background:#fff;color:#222;border-radius:30px;padding:10px 18px;font-weight:700;font-size:26px;white-space:nowrap}
+
+/* ===================== STARTBILDSCHIRM ===================== */
+.startscr{align-items:center;justify-content:center;text-align:center;gap:18px;padding:20px;background:linear-gradient(#bfe6ff,#fff3bf 70%)}
+.startscr h1{margin:0;font-size:clamp(36px,8vmin,72px);color:var(--g);text-shadow:0 4px 0 var(--y)}
+.startscr .baggi{height:clamp(160px,32vh,300px);width:auto}
+
+/* ===================== HOME ===================== */
+.home{flex:1;min-height:0;display:grid;grid-template-columns:1.6fr 1fr;gap:16px;padding:14px 16px 16px}
+@media (orientation:portrait){.home{grid-template-columns:1fr;grid-template-rows:minmax(0,1.05fr) auto}}
+.site{position:relative;overflow:hidden;background:#bfe6ff;display:flex;flex-direction:column;min-height:0}
+.siteSvg{width:100%;flex:1;min-height:0}
+.yard{flex:none;height:clamp(54px,11vh,90px);display:flex;gap:6px;align-items:flex-end;justify-content:flex-end;padding:0 10px 6px 150px;background:#8bc34a;border-top:4px solid #6da12f;overflow:hidden}
+.yard .veh{height:100%;width:auto;flex:none}
+.homebaggi{position:absolute;left:10px;bottom:0;height:clamp(90px,19vh,170px);display:flex;align-items:flex-end;z-index:2}
+.homebaggi .baggi{height:100%;width:auto}
+.hbubble{position:absolute;left:12px;top:10px;right:12px;z-index:3}
+.bubble{background:#fff;border:3px solid #222;border-radius:18px;padding:8px 14px;font-weight:700;font-size:clamp(17px,2.8vmin,26px);position:relative;line-height:1.25}
+.side{display:flex;flex-direction:column;gap:clamp(8px,1.8vh,16px);justify-content:center;min-height:0}
+.lager{display:flex;align-items:center;gap:14px;padding:10px 16px;border:4px solid #222;border-radius:20px;background:#fff;font-size:clamp(20px,3.4vmin,32px);font-weight:700;min-height:70px;text-align:left}
+.lager b{font-size:1.5em;color:var(--r)}
+.goal{background:#fff;border:4px solid #222;border-radius:20px;padding:10px 14px;display:flex;align-items:center;gap:12px;min-height:70px}
+.goal .gbar{flex:1;height:26px;border-radius:14px;background:#ddd;border:3px solid #222;overflow:hidden}
+.goal .gbar i{display:block;height:100%;background:repeating-linear-gradient(-45deg,var(--o) 0 14px,var(--y) 14px 28px);transition:width .8s}
+.goal .gl{font-weight:700;font-size:clamp(15px,2.4vmin,22px)}
+.goal .chestbtn{border:0;background:none;font-size:42px;padding:0;min-width:64px;min-height:64px}
+.goal .chestbtn.ready{animation:pulse 1s infinite}
+#gear{position:absolute;left:14px;bottom:16px;width:64px;height:64px;border-radius:50%;border:3px solid #222;background:#fff;font-size:30px;z-index:5;overflow:hidden;padding:0}
+#gear i{position:absolute;left:0;bottom:0;height:0;width:100%;background:rgba(214,49,43,.45);transition:height 0s}
+#gear.hold i{height:100%;transition:height 3s linear}
+.rowbtn{display:flex;gap:12px}
+.rowbtn .btn{flex:1}
+
+/* ===================== SPIELE ===================== */
+.game{flex:1;min-height:0;display:flex;flex-direction:column;padding:8px 12px 8px;gap:8px;background:linear-gradient(#cfeaff 0,#cfeaff 55%,#e9d9a8 55%)}
+.instr{flex:none;display:flex;align-items:center;gap:12px;font-weight:700;font-size:clamp(20px,3.4vmin,32px);min-height:64px}
+.instr span{flex:1}
+.arena{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
+.foot{flex:none;height:clamp(110px,24vh,190px);display:flex;align-items:flex-end;gap:12px;position:relative}
+.foot .bwrap{height:100%;flex:none;display:flex;align-items:flex-end}
+.foot .baggi{height:100%;width:auto}
+.foot .bubble{flex:1;align-self:center;max-width:520px;min-height:56px}
+.foot .bubble::before{content:"";position:absolute;left:-14px;top:50%;margin-top:-10px;border:10px solid transparent;border-right-color:#222;border-left:0}
+.foot .kip{height:75%;margin-left:auto;flex:none;transition:transform .3s}
+.foot .kip svg{height:100%;width:auto}
+.kip.bump{transform:translateY(8px) rotate(-2deg)}
+
+/* Baggi-Animationen */
+.baggi{display:block;transform-origin:50% 100%}
+.baggi .arm{transform-origin:64px 76px;transform-box:view-box}
+.baggi .eyes{transform-origin:123px 41px;animation:blinkEye 4.5s infinite}
+.baggi.hop{animation:hop .55s ease 2}
+.baggi.wiggle{animation:wig .5s ease}
+.baggi.lift .arm{animation:lift 1.1s ease}
+.baggi.bob{animation:bob 1.6s ease-in-out infinite}
+.beacon{animation:beacon .8s steps(2) infinite}
+@keyframes blinkEye{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+@keyframes hop{0%,100%{transform:translateY(0)}40%{transform:translateY(-22px) rotate(-3deg)}}
+@keyframes wig{0%,100%{transform:rotate(0)}25%{transform:rotate(-6deg)}75%{transform:rotate(6deg)}}
+@keyframes lift{0%,100%{transform:rotate(0)}40%,60%{transform:rotate(-28deg)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes beacon{0%{fill:#ff8a1f}100%{fill:#fff2a8}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+
+/* Kran-Blitz */
+.arena.kran{background:none}
+.craneTower{position:absolute;left:3%;top:0;bottom:0;width:26px;background:repeating-linear-gradient(0deg,var(--o) 0 22px,#d46e00 22px 26px);border-radius:6px;z-index:0}
+.craneArm{position:absolute;left:3%;right:0;top:0;height:22px;background:repeating-linear-gradient(90deg,var(--o) 0 30px,#d46e00 30px 34px);border-radius:6px;z-index:1}
+.signzone{position:absolute;left:0;right:0;top:22px;height:56%;display:flex;justify-content:center;overflow:hidden}
+.sign{display:flex;flex-direction:column;align-items:center;transform-origin:50% 0}
+.sign .rope{width:6px;height:clamp(20px,6vh,60px);background:#333}
+.sign .board{background:#fff;border:6px solid #222;border-radius:18px;padding:10px clamp(24px,6vw,70px);box-shadow:0 8px 0 rgba(0,0,0,.2);background-image:repeating-linear-gradient(-45deg,transparent 0 22px,rgba(255,201,40,.2) 22px 44px)}
+.sign.off{transform:translateX(120vw)}
+.sign.in{animation:signIn .8s ease-out forwards}
+.sign.out{animation:signOut .7s ease-in forwards}
+@keyframes signIn{0%{transform:translateX(120vw) rotate(10deg)}65%{transform:translateX(-2vw) rotate(-5deg)}85%{transform:rotate(2deg)}100%{transform:none}}
+@keyframes signOut{0%{transform:none}100%{transform:translateX(-120vw) rotate(-10deg)}}
+.choices{position:absolute;left:0;right:0;bottom:6px;display:flex;gap:clamp(10px,3vw,30px);justify-content:center;align-items:flex-end}
+.crate{position:relative;flex:1;max-width:300px;min-height:clamp(90px,18vh,150px);font-size:clamp(40px,7.5vmin,70px);border:5px solid #6b4423;border-radius:12px;background:#f5deb0;background-image:repeating-linear-gradient(0deg,transparent 0 30px,rgba(107,68,35,.35) 30px 34px);box-shadow:0 8px 0 #6b4423;padding:6px;z-index:2}
+.crate:active{transform:translateY(5px);box-shadow:0 3px 0 #6b4423}
+.crate.shake{animation:wig .45s ease}
+.crate.gone{opacity:.25;pointer-events:none}
+.crate.glow,.mound.glow,.bitem.glow{outline:8px solid #5fc57a;outline-offset:3px;animation:pulse .8s infinite}
+.crate.flying{transition:transform 1s cubic-bezier(.5,-0.3,.6,1),opacity .3s .9s;z-index:20;pointer-events:none}
+
+/* Bagger-Buddeln */
+.mounds{flex:1;display:flex;gap:clamp(8px,2.5vw,26px);align-items:flex-end;justify-content:center;padding-bottom:4px}
+.mound{position:relative;flex:1;max-width:320px;height:clamp(120px,32vh,260px);border:0;border-radius:50% 50% 8px 8px/90% 90% 8px 8px;background:radial-gradient(circle at 40% 30%,#f1d58e,#d9b25e 70%);box-shadow:0 8px 0 #a98230;font-size:clamp(38px,7vmin,66px);display:flex;align-items:center;justify-content:center;padding-top:12%}
+.mound:active{transform:translateY(5px)}
+.mound.shake{animation:wig .45s ease}
+.mound.gone{opacity:.3;pointer-events:none}
+.mound .treasure{position:absolute;left:50%;top:30%;font-size:80px;transform:translateX(-50%) scale(0);opacity:0}
+.mound.dug{background:radial-gradient(circle at 40% 30%,#e7cd8c,#c9a34f 70%);height:clamp(70px,16vh,130px)!important;transition:height .8s}
+.mound.dug .w{opacity:0}
+.mound.dug .treasure{animation:treasure 1.1s .5s forwards}
+@keyframes treasure{0%{transform:translateX(-50%) scale(0);opacity:0}60%{transform:translateX(-50%) translateY(-50px) scale(1.4);opacity:1}100%{transform:translateX(-50%) translateY(-30px) scale(1.1);opacity:1}}
+
+/* Förderband */
+.target{flex:none;align-self:center;display:flex;align-items:center;gap:16px;background:#fff;border:6px solid #222;border-radius:20px;padding:6px 26px;font-size:clamp(46px,9vmin,84px);box-shadow:0 6px 0 rgba(0,0,0,.2)}
+.target small{font-size:clamp(16px,2.6vmin,24px);color:#555}
+.dots i{display:inline-block;width:22px;height:22px;border-radius:50%;background:#ddd;border:3px solid #222;margin-left:6px}
+.dots i.on{background:var(--y)}
+.belt{position:relative;flex:none;margin-top:auto;height:clamp(96px,17vh,140px);background:#555;border-top:8px solid #333;border-bottom:8px solid #333;overflow:hidden}
+.belt:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 40px,rgba(255,255,255,.1) 40px 50px);animation:beltmove 1.2s linear infinite}
+@keyframes beltmove{to{background-position:-50px 0}}
+.bpos{position:absolute;top:50%;left:0;margin-top:calc(clamp(64px,11vh,90px)/-2);will-change:transform}
+.bitem{border:5px solid #6b4423;border-radius:12px;background:#f5deb0;min-height:clamp(64px,11vh,90px);padding:0 22px;font-size:clamp(34px,6.5vmin,56px);box-shadow:0 5px 0 #6b4423}
+.bitem.shake{animation:wig .45s ease}
+.fallclone{position:fixed;z-index:30;pointer-events:none;border:5px solid #6b4423;border-radius:12px;background:#f5deb0;font-size:clamp(34px,6.5vmin,56px);padding:0 22px;display:flex;align-items:center;transition:transform .9s cubic-bezier(.4,0,.8,.6),opacity .3s .7s}
+.beltgap{flex:1}
+
+/* ===================== ABSCHLUSS ===================== */
+.reward{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:14px;background:linear-gradient(#fff3bf,#ffe08a)}
+.reward h2{margin:0;font-size:clamp(28px,6vmin,54px);color:var(--g)}
+.reward .baggi{height:clamp(110px,24vh,210px);width:auto}
+.stars{font-size:clamp(34px,7vmin,60px);letter-spacing:6px;min-height:1.2em}
+.stars span{display:inline-block;animation:starin .5s backwards}
+@keyframes starin{from{transform:scale(0) rotate(-180deg);opacity:0}}
+.newbricks{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;font-size:clamp(26px,4.4vmin,40px)}
+.brick{background:#d9572b;border:3px solid #8f3412;border-radius:8px;padding:2px 6px;box-shadow:inset 0 -6px 0 rgba(0,0,0,.15);color:#fff}
+.brick .w{padding:10px 14px;display:block}
+.brick .sy,.brick .w.one .sy{color:#fff!important}
+.rbtns{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;width:100%;max-width:700px}
+.rbtns .btn{flex:1;min-width:220px}
+.hint{font-size:clamp(16px,2.6vmin,22px);font-weight:700}
+
+/* ===================== LAGER / GARAGE ===================== */
+.scr{flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch}
+.scr h2{margin:0;font-size:clamp(26px,5vmin,46px);text-align:center;color:var(--g)}
+.wall{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;font-size:clamp(28px,5vmin,44px)}
+.wall .brick{padding:2px 4px}
+.wall .brick.empty{background:transparent;border:3px dashed #999;color:#999;box-shadow:none}
+.garage{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.gcard{padding:10px;text-align:center;font-weight:700;font-size:20px;border:0;background:#fff;border:4px solid #222;border-radius:20px;min-height:64px}
+.gcard svg{width:100%;height:100px}
+.gcard.lock svg{filter:brightness(0) opacity(.25)}
+.acc{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.acc .btn.on{background:#5fc57a;box-shadow:0 6px 0 #338a4d}
+
+/* ===================== LESEPFAD ===================== */
+.road{display:flex;flex-wrap:wrap;gap:clamp(14px,3vmin,26px);justify-content:center;padding:34px 12px 20px;background:#555;border-radius:24px;border:6px solid #333;background-image:repeating-linear-gradient(90deg,transparent 0 26px,rgba(255,255,255,.08) 26px 30px)}
+.stn{position:relative;width:clamp(130px,19vmin,180px);min-height:clamp(110px,16vmin,150px);border:5px solid #222;border-radius:16px;background:var(--y);font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:6px;font-size:clamp(14px,2.2vmin,18px);box-shadow:0 6px 0 #222}
+.stn .num{font-size:clamp(30px,5vmin,46px);line-height:1}
+.stn.done{background:#9be3ae}
+.stn.lock{background:#bbb;color:#666}
+.stn.cur{outline:6px solid #fff;animation:pulse 1.4s infinite}
+.onroad{position:absolute;top:-52px;left:50%;margin-left:-36px;width:72px;pointer-events:none}
+.onroad .baggi{width:100%;height:auto}
+.readscr{flex:1;min-height:0;display:flex;flex-direction:column;padding:10px 14px;gap:10px;background:#fffdf0}
+.storycard{flex:1;min-height:0;overflow-y:auto;background:#fff;border:4px solid #222;border-radius:24px;padding:clamp(10px,2.4vmin,24px);font-size:clamp(40px,6.2vmin,64px);line-height:1.5;display:flex;flex-direction:column;justify-content:center}
+.line{margin:clamp(2px,1vmin,10px) 0}
+.wp{display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;line-height:1.1}
+.pic{height:clamp(40px,6.4vmin,60px);font-size:clamp(34px,5.4vmin,52px);display:flex;align-items:flex-end;justify-content:center}
+.pic svg{height:100%;width:auto}
+.rbar{flex:none;height:46px;position:relative;background:#ddd;border:4px solid #222;border-radius:24px;margin:0 30px 0 10px}
+.rbar .fill{height:100%;background:repeating-linear-gradient(-45deg,var(--o) 0 14px,var(--y) 14px 28px);border-radius:20px;transition:width .9s}
+.rbar .pb{position:absolute;top:-30px;width:70px;margin-left:-35px;transition:left .9s}
+.rbar .pb .baggi{width:100%;height:auto}
+.rbar .flag{position:absolute;right:-24px;top:-22px;font-size:34px}
+.acts{flex:none;display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.qcard{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:10px}
+.qsent{font-size:clamp(40px,6.4vmin,62px);line-height:1.4}
+.qq{font-size:clamp(24px,4vmin,36px);font-weight:700}
+.ans{display:flex;gap:18px;flex-wrap:wrap;justify-content:center}
+.ans .btn{min-width:200px;min-height:clamp(90px,16vh,130px);font-size:clamp(26px,4.4vmin,38px)}
+.ans .btn.pc{font-size:70px;min-width:clamp(130px,22vmin,200px)}
+.ans .btn.pc svg{height:90px;width:auto}
+.ans .btn.gone{opacity:.25;pointer-events:none}
+.ans .btn.glow{outline:8px solid #5fc57a;outline-offset:3px;animation:pulse .8s infinite}
+
+/* ===================== ELTERN ===================== */
+.parent{font-size:18px;background:#f4f5f7}
+.parent .sec{background:#fff;border:3px solid #222;border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.parent h3{margin:0;font-size:22px}
+.parent label{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-weight:700}
+.parent input[type=text],.parent textarea,.parent select{font-size:18px;padding:10px;border:2px solid #888;border-radius:10px;min-height:48px;width:100%}
+.parent textarea{min-height:110px}
+.parent input[type=range]{width:min(360px,100%);height:40px}
+.parent input[type=checkbox]{width:30px;height:30px}
+.parent .btn{min-height:52px;font-size:18px;padding:8px 16px;box-shadow:0 4px 0 var(--yd)}
+.parent table{border-collapse:collapse;width:100%}
+.parent td,.parent th{border-bottom:1px solid #ddd;padding:6px 8px;text-align:left;font-size:16px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:#eef;border:1px solid #99c;border-radius:8px;padding:4px 10px;font-size:16px}
+.chip.bad{background:#fee;border-color:#c99}
+.chip button{border:0;background:none;font-size:16px;padding:0 0 0 6px}
+
+/* ===================== OVERLAYS ===================== */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.mbox{background:#fff;border:6px solid #222;border-radius:26px;padding:22px;max-width:560px;width:100%;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;max-height:96vh;overflow:auto}
+.mbox h2{margin:0;font-size:clamp(26px,5vmin,40px)}
+.chest{width:clamp(160px,30vh,260px);height:auto}
+.chest .lid{transform-origin:20px 90px;transition:transform .6s}
+.chest.open .lid{transform:rotate(-55deg)}
+.prize{font-size:80px;line-height:1;animation:starin .6s}
+.prize svg{height:110px;width:auto}
+.mbox .chest.open{width:clamp(90px,16vh,130px)}
+.chest{max-height:30vh}
+.confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:200}
+.confetti i{position:absolute;top:-20px;width:14px;height:22px;animation:conf 2.4s linear forwards}
+@keyframes conf{to{top:105%;transform:rotate(720deg) translateX(60px)}}
+.fstar{position:absolute;right:20px;top:20px;font-size:48px;font-weight:700;z-index:40;pointer-events:none;animation:fup 1.2s ease-out forwards}
+@keyframes fup{from{transform:translateY(0) scale(.5);opacity:1}to{transform:translateY(-80px) scale(1.3);opacity:0}}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#222;color:#fff;padding:12px 20px;border-radius:16px;z-index:150;font-weight:700;font-size:20px;max-width:90vw;text-align:center}
+.part{transform-box:fill-box;transform-origin:50% 100%}
+.part.pop{animation:partpop 1s ease}
+@keyframes partpop{0%{transform:scale(.2) translateY(-60px);opacity:0}65%{transform:scale(1.12);opacity:1}100%{transform:none;opacity:1}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="tape"></div>
+  <div id="main"></div>
+  <div class="tape"></div>
+</div>
+
+<script>
+'use strict';
+/* =====================================================================
+   LESEBAUSTELLE – Lese-Übungs-App mit Baggi
+   Alles in einer Datei, keine externen Dateien, speichert nur in localStorage.
+
+   GLIEDERUNG
+   1. DATEN (hier kannst du Wörter, Geschichten, Quatschsätze erweitern!)
+   2. Hilfsfunktionen, Speicher, Sprache, Töne
+   3. Grafiken (Baggi, Fahrzeuge, Baustellen)
+   4. Startbildschirm, Home, Lager, Garage, Belohnungen
+   5. Blitzwörter (Kran-Blitz, Bagger-Buddeln, Förderband)
+   6. Lesepfad (Geschichten)
+   7. Elternbereich
+   8. Start
+   ===================================================================== */
+
+/* =====================================================================
+   1. DATEN
+   ===================================================================== */
+
+/* ---- 1a. Blitzwörter, nach Levels sortiert ----
+   Silbentrennung mit "|" (z. B. "ei|ne"). Einsilbige Wörter brauchen kein "|".
+   Neue Wörter einfach in die Liste schreiben oder ein neues Level anhängen.
+   (Eigene Wörter kannst du auch im Elternbereich eintragen.) */
+const LEVELS = [
+  { name: 'Level 1', words: ['ich','du','er','sie','es','und','ist','ein','der','die','das','da','ja','nein','so'] },
+  { name: 'Level 2', words: ['wir','mit','im','in','auf','zu','an','hat','war','mal','wo','wie','was','auch','nicht'] },
+  { name: 'Level 3', words: ['ei|ne','den','dem','sind','kann','will','a|ber','noch','mein','dein','sein','kommt','geht','sagt','hier'] },
+  { name: 'Level 4', words: ['viel','sehr','dann','wenn','o|der','al|le','fährt','macht','schnell','groß','klein','heu|te','gut','bald','jetzt'] }
+];
+
+/* ---- 1b. Ablenker-Wörter ----
+   Zu jedem Zielwort: ähnlich aussehende Wörter. Sie kommen erst in höheren
+   Schwierigkeitsstufen vor. Die Wörter müssen nicht in den Levels stehen. */
+const CONFUSABLE = {
+  ich:['ihr','ach'], du:['da','dir','zu'], er:['es','her','der'], sie:['die','sein','sind'], es:['er','ist','als'],
+  und:['uns','um'], ist:['in','im','ihr'], ein:['in','im','eine'], der:['die','das','den','dem'], die:['der','das','sie'],
+  das:['dass','da','der'], da:['du','ja','das'], ja:['da','na','je'], nein:['mein','dein','sein','ein'], so:['sie','zu','wo'],
+  wir:['mir','mit','wie'], mit:['mir','mich','mal'], im:['in','um','ein'], in:['im','ein','an'], auf:['aus','an','und'],
+  zu:['du','so','zum'], an:['am','auf','in'], hat:['hier','her','hart'], war:['was','wir','wer'], mal:['man','mit','wo'],
+  wo:['so','wie','was'], wie:['wir','wo','sie'], was:['war','wer','wie'], auch:['euch','auf','aus'], nicht:['nichts','nach','ich'],
+  eine:['einen','keine','ein'], den:['dem','der','dein'], dem:['den','der','dein'], sind:['sie','sein','sing'],
+  kann:['kam','kenn','dann'], will:['wild','viel','wir'], aber:['über','oder','alle'], noch:['nach','nicht','doch'],
+  mein:['dein','sein','nein','kein'], dein:['mein','sein','nein','den'], sein:['mein','dein','sind','nein'],
+  kommt:['kam','kann','komm'], geht:['gut','gern','sieht'], sagt:['sag','fragt','sagst'], hier:['hat','her','mir'],
+  viel:['will','vier','wie'], sehr:['sein','mehr','sie'], dann:['denn','kann','wann'], wenn:['wann','denn','wer'],
+  oder:['aber','über','er'], alle:['alt','als','aber'], fährt:['fahrt','führt','hört'], macht:['mach','nacht','lacht'],
+  schnell:['schon','schön','schnee'], groß:['grün','gut','gern'], klein:['kein','fein','nein'], heute:['heiß','heim','neue'],
+  gut:['gern','grün','groß'], bald:['halb','kalt','alt'], jetzt:['setzt','sitzt','jede']
+};
+/* Zweisilbige Ablenker, die eine Silbentrennung brauchen (alle anderen Ablenker sind einsilbig) */
+const EXTRA_BARS = ['ei|nen','kei|ne','ü|ber','neu|e','je|de'];
+
+/* ---- 1c. Bildchen für Baustellenwörter (kleine Lesehilfe) ----
+   Schlüssel = Wort kleingeschrieben ohne "|". Wert = Emoji oder Name eines Fahrzeugs ('veh:kran'). */
+const PICS = {
+  baggi:'veh:bagger', bagger:'veh:bagger', kran:'veh:kran', kipper:'veh:kipper', radlader:'veh:radlader',
+  walze:'veh:walze', betonmischer:'veh:betonmischer', planierraupe:'veh:planierraupe',
+  sand:'🏖️', stein:'🪨', steine:'🪨', haus:'🏠', rad:'🛞', räder:'🛞', schaufel:'⛏️', helm:'⛑️',
+  baustelle:'🚧', loch:'🕳️', berg:'⛰️', straße:'🛣️', nacht:'🌙', garage:'🏚️', fest:'🎉', sonne:'☀️', freunde:'🤝'
+};
+
+/* ---- 1d. Geschichten für den Lesepfad ----
+   text = Sätze (ein Satz pro Eintrag), Silbentrennung mit "|".
+   q = Verständnisfrage (optional):
+       {type:'tf',  s:'Satz', a:true|false}                     -> "Stimmt das?"
+       {type:'pic', s:'Frage', a:'bagger', opts:['bagger','kran','kipper']}  -> "Welches Bild passt?"
+   Ohne q wird ein zufälliger Satz aus SENTENCES genommen. */
+const STORIES = [
+  { id:'s1', title:'Das ist Baggi', text:['Das ist Bag|gi.','Bag|gi ist ein Bag|ger.','Er ist gelb.'],
+    q:{type:'pic', s:'Wer ist gelb?', a:'bagger', opts:['kran','bagger','kipper']} },
+  { id:'s2', title:'Baggi und der Sand', text:['Da ist Sand.','Bag|gi hat eine Schau|fel.','Er macht ein Loch.'],
+    q:{type:'tf', s:'Der Sand ist blau.', a:false} },
+  { id:'s3', title:'Der Kran', text:['Da ist der Kran.','Der Kran ist groß.','Bag|gi ist klein.','Sie sind Freun|de.'],
+    q:{type:'pic', s:'Wer ist klein?', a:'bagger', opts:['kran','bagger','walze']} },
+  { id:'s4', title:'Der Kipper', text:['Da kommt der Kip|per.','Er hat viel Sand.','Er fährt zu Bag|gi.','Bag|gi sagt: Hal|lo!'],
+    q:{type:'tf', s:'Der Kip|per hat viel Sand.', a:true} },
+  { id:'s5', title:'Das Haus', text:['Wir bau|en ein Haus.','Bag|gi macht ein Loch.','Der Kip|per hat Stei|ne.','Der Kran hat den Stein.'],
+    q:{type:'pic', s:'Was bau|en wir?', a:'haus', opts:['sand','haus','kran']} },
+  { id:'s6', title:'Der Radlader', text:['Hier kommt der Rad|la|der.','Er ist rot und sehr groß.','Er fährt mit viel Sand.','Bag|gi sagt: Du bist schnell!'],
+    q:{type:'tf', s:'Der Rad|la|der ist gelb.', a:false} },
+  { id:'s7', title:'Die Walze', text:['Da ist die Wal|ze.','Sie ist grau und groß.','Sie fährt auf die Stra|ße.','Wenn sie fährt, ist die Stra|ße gut.'],
+    q:{type:'tf', s:'Die Wal|ze fährt auf die Stra|ße.', a:true} },
+  { id:'s8', title:'Der Betonmischer', text:['Jetzt kommt der Be|ton|mi|scher.','Er ist blau und sehr groß.','Er geht rund und rund.','Bag|gi sagt: Das ist gut!'],
+    q:{type:'pic', s:'Wer ist blau?', a:'betonmischer', opts:['radlader','bagger','betonmischer']} },
+  { id:'s9', title:'Der Helm', text:['Bag|gi hat ei|nen Helm.','Der Helm ist gelb.','Der Kran hat auch ei|nen Helm.','Al|le ha|ben ei|nen Helm.','So ist es gut.'],
+    q:{type:'tf', s:'Nur Bag|gi hat ei|nen Helm.', a:false} },
+  { id:'s10', title:'Das Loch', text:['Heu|te macht Bag|gi ein Loch.','Das Loch ist sehr groß.','Der Kip|per fährt hin.','Er hat viel Sand da.','Dann ist das Loch bald voll.'] },
+  { id:'s11', title:'Der Berg', text:['Da ist ein Berg aus Sand.','Bag|gi will den Berg klein ma|chen.','Er macht und macht.','Dann hilft der Rad|la|der.','Bald ist der Berg weg!'],
+    q:{type:'tf', s:'Der Berg ist aus Eis.', a:false} },
+  { id:'s12', title:'Die große Baustelle', text:['Heu|te ist ein gro|ßer Tag.','Al|le sind auf der Bau|stel|le.','Der Kran, der Kip|per und die Wal|ze sind da.','Bag|gi sagt: Wir bau|en ein Haus!','Dann geht es los.'],
+    q:{type:'pic', s:'Wo sind al|le?', a:'baustelle', opts:['berg','baustelle','garage']} },
+  { id:'s13', title:'Das Fest', text:['Das Haus ist fer|tig.','Bag|gi ist sehr froh.','Al|le Freun|de kom|men zu Bag|gi.','Sie sa|gen: Das ist ein gu|tes Haus!','Jetzt ma|chen wir ein Fest.'] },
+  { id:'s14', title:'Gute Nacht', text:['Der Tag ist aus.','Bag|gi ist mü|de.','Er fährt in die Ga|ra|ge.','Der Kran sagt: Gu|te Nacht!','Bag|gi sagt: Gu|te Nacht, Kran!'] }
+];
+
+/* ---- 1e. Quatschsätze und richtige Sätze ----
+   a:true = stimmt, a:false = Quatsch. Wird als Verständnisfrage genutzt. */
+const SENTENCES = [
+  {s:'Der Kran trinkt Ka|kao.', a:false}, {s:'Der Kip|per hat Sand.', a:true}, {s:'Bag|gi ist ein Bag|ger.', a:true},
+  {s:'Das Haus fährt auf der Stra|ße.', a:false}, {s:'Der Bag|ger hat eine Schau|fel.', a:true},
+  {s:'Die Wal|ze kann flie|gen.', a:false}, {s:'Der Rad|la|der hat vier Rä|der.', a:true}, {s:'Ein Stein ist weich.', a:false},
+  {s:'Der Hund fährt Bag|ger.', a:false}, {s:'Bag|gi hat ei|nen Helm.', a:true}, {s:'Der Kran ist groß.', a:true},
+  {s:'Die Kuh sitzt im Kran.', a:false}, {s:'Der Kip|per fährt mit Sand.', a:true}, {s:'Der Bag|ger ist aus Eis.', a:false},
+  {s:'Die Son|ne ist heiß.', a:true}, {s:'Der Fisch fährt Kip|per.', a:false}, {s:'Das Rad ist rund.', a:true},
+  {s:'Der Helm ist für den Kopf.', a:true}, {s:'Ein Haus hat ein Dach.', a:true}, {s:'Der Kran sagt Wau wau.', a:false},
+  {s:'Wir bau|en ein Haus aus Stei|nen.', a:true}, {s:'Der Stein ist weich wie Wat|te.', a:false},
+  {s:'Der Kip|per hat Rä|der.', a:true}, {s:'Die Wal|ze ist aus Zu|cker.', a:false}, {s:'Im Sand kann man gra|ben.', a:true}
+];
+
+/* ---- 1f. Baustellen-Projekte (Belohnung "Meine Baustelle") ----
+   Jedes Bauteil kostet STERNE_PRO_TEIL Sterne. Zeichenfläche 400 x 230. */
+const STERNE_PRO_TEIL = 5;
+const PROJECTS = [
+  { name:'Haus', base:'', parts:[
+    '<rect x="100" y="178" width="200" height="14" fill="#9aa0a6"/>',
+    '<rect x="120" y="108" width="160" height="70" fill="#f4d9a6" stroke="#b58b4c" stroke-width="3"/>',
+    '<rect x="138" y="124" width="34" height="32" fill="#bde3ff" stroke="#fff" stroke-width="4"/><rect x="228" y="124" width="34" height="32" fill="#bde3ff" stroke="#fff" stroke-width="4"/>',
+    '<rect x="187" y="130" width="26" height="48" rx="3" fill="#a0522d"/><circle cx="207" cy="156" r="2.5" fill="#ffd54a"/>',
+    '<polygon points="104,110 200,48 296,110" fill="#d6312b"/>',
+    '<rect x="242" y="48" width="18" height="36" fill="#a64b2a"/>',
+    '<rect x="322" y="150" width="10" height="40" fill="#8b5a2b"/><circle cx="327" cy="140" r="26" fill="#43a047"/><circle cx="80" cy="184" r="5" fill="#ff6fa5"/><circle cx="64" cy="186" r="5" fill="#fff"/><circle cx="48" cy="184" r="5" fill="#ff6fa5"/>'
+  ]},
+  { name:'Brücke', base:'<rect x="125" y="190" width="150" height="40" fill="#4aa3df"/>', parts:[
+    '<rect x="128" y="118" width="24" height="84" fill="#8d949b"/><rect x="248" y="118" width="24" height="84" fill="#8d949b"/>',
+    '<rect x="30" y="104" width="340" height="16" rx="3" fill="#555"/><path d="M40 112h320" stroke="#ffd54a" stroke-width="3" stroke-dasharray="14 10"/>',
+    '<rect x="30" y="88" width="340" height="4" fill="#eee"/><path d="M44 88v16M104 88v16M164 88v16M224 88v16M284 88v16M344 88v16" stroke="#eee" stroke-width="4"/>',
+    '<path d="M136 88Q200 -6 264 88" stroke="#d6312b" stroke-width="7" fill="none"/>',
+    '<path d="M165 56V88M200 40V88M235 56V88" stroke="#d6312b" stroke-width="3"/><path d="M200 40v-24" stroke="#555" stroke-width="3"/><path d="M200 16l22 8l-22 8z" fill="#ffd54a"/>'
+  ]},
+  { name:'Turm', base:'', parts:[
+    '<rect x="150" y="160" width="100" height="32" fill="#8d949b"/><rect x="190" y="166" width="20" height="26" rx="10" fill="#7a4a24"/>',
+    '<rect x="160" y="100" width="80" height="62" fill="#e0b88a" stroke="#a37a4c" stroke-width="3"/>',
+    '<rect x="165" y="52" width="70" height="50" fill="#d9a56f" stroke="#a37a4c" stroke-width="3"/>',
+    '<rect x="190" y="114" width="20" height="28" rx="10" fill="#bde3ff"/><rect x="190" y="64" width="20" height="24" rx="10" fill="#bde3ff"/>',
+    '<polygon points="156,54 200,6 244,54" fill="#d6312b"/><circle cx="200" cy="8" r="5" fill="#ffd54a"/>'
+  ]},
+  { name:'Tankstelle', base:'', parts:[
+    '<rect x="50" y="184" width="300" height="8" fill="#777"/>',
+    '<rect x="80" y="120" width="90" height="64" fill="#fff" stroke="#999" stroke-width="3"/><rect x="95" y="136" width="34" height="26" fill="#bde3ff"/><rect x="140" y="146" width="20" height="38" fill="#d6312b"/>',
+    '<rect x="60" y="104" width="280" height="16" rx="4" fill="#d6312b"/><rect x="300" y="120" width="10" height="64" fill="#999"/>',
+    '<rect x="236" y="140" width="28" height="44" rx="4" fill="#ffc928"/><rect x="242" y="148" width="16" height="12" fill="#333"/><path d="M264 150q14 4 12 24" stroke="#333" stroke-width="3" fill="none"/>',
+    '<rect x="352" y="70" width="6" height="120" fill="#555"/><circle cx="355" cy="66" r="22" fill="#ffc928" stroke="#d6312b" stroke-width="5"/><text x="355" y="74" font-size="22" text-anchor="middle">⛽</text>'
+  ]}
+];
+
+/* ---- 1g. Fuhrpark & Zubehör: Reihenfolge der Überraschungen aus der Werkzeugkiste ---- */
+const VEHICLES = { kran:'Kran', kipper:'Kipper', walze:'Walze', radlader:'Radlader', betonmischer:'Betonmischer', planierraupe:'Planierraupe' };
+const ACCESSORIES = { helm:'Helm', blink:'Blinklicht', hupe:'Hupe' };
+const UNLOCK_ORDER = ['v:kran','a:helm','v:kipper','a:blink','v:walze','a:hupe','v:radlader','v:betonmischer','v:planierraupe'];
+const TAGESZIEL_STERNE = 15;
+
+/* ---- 1h. Baggis Sätze ---- */
+const LOB = ['Super!','Toll gemacht!','Genau richtig!','Prima!','Klasse!','Das war richtig!','Stark!','Bravo!'];
+
+/* =====================================================================
+   2. HILFSFUNKTIONEN, SPEICHER, SPRACHE, TÖNE
+   ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rnd = a => a[Math.floor(Math.random() * a.length)];
+const plain = s => String(s).replace(/\|/g, '');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function todayKey() { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+
+/* ---- Speicher (localStorage) ---- */
+const KEY = 'lesebaustelle_v1';
+function defaults() {
+  return {
+    v: 1, name: '', stars: 0, round: 0, flashMs: 2000, sim: 0, recent: [],
+    set: { syl: true, flash: 2000, rate: 0.8, roundLen: 8, sound: true, speech: true },
+    w: {},        // Wortstatistik: {wort:{c,s,miss,heard,seen,col,lastRound}}
+    st: {},       // Stationen: {id:{done,runs:[[t1,t2,t3],...]}}
+    cw: [], cs: [], // eigene Wörter / eigene Geschichten
+    unl: [], eq: { helm: false, blink: false, hupe: false },
+    day: { d: '', n: 0, chest: false }, shownParts: 0
+  };
+}
+function merge(d, o) {
+  for (const k in o) {
+    if (o[k] && typeof o[k] === 'object' && !Array.isArray(o[k]) && d[k] && typeof d[k] === 'object' && !Array.isArray(d[k])) merge(d[k], o[k]);
+    else d[k] = o[k];
+  }
+  return d;
+}
+function load() {
+  try { const raw = localStorage.getItem(KEY); if (raw) return merge(defaults(), JSON.parse(raw)); } catch (e) {}
+  return defaults();
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+let S = load();
+function ensureDay() { if (S.day.d !== todayKey()) S.day = { d: todayKey(), n: 0, chest: false }; }
+
+/* ---- Wortlisten (Standard + eigene) ---- */
+let WORDS = [], SPEC = {};
+function rebuildWords() {
+  WORDS = []; SPEC = {};
+  LEVELS.forEach((L, i) => L.words.forEach(sp => { WORDS.push({ p: plain(sp), spec: sp, lvl: i }); SPEC[plain(sp)] = sp; }));
+  S.cw.forEach(sp => { if (!SPEC[plain(sp)]) { WORDS.push({ p: plain(sp), spec: sp, lvl: LEVELS.length }); SPEC[plain(sp)] = sp; } });
+  EXTRA_BARS.forEach(sp => { if (!SPEC[plain(sp)]) SPEC[plain(sp)] = sp; });
+}
+const specOf = p => SPEC[p] || p;
+const allStories = () => STORIES.concat(S.cs);
+
+/* ---- Zeitsteuerung: alles wird beim Bildschirmwechsel abgebrochen ---- */
+const T = { id: 0, raf: 0 };
+function later(fn, ms) { const id = T.id; return setTimeout(() => { if (id === T.id) fn(); }, ms); }
+function stopAll() { T.id++; cancelAnimationFrame(T.raf); try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) {} }
+
+/* ---- Sprachausgabe ---- */
+const TTS = { ok: ('speechSynthesis' in window) && ('SpeechSynthesisUtterance' in window), voice: null };
+function pickVoice() {
+  if (!TTS.ok) return;
+  const vs = speechSynthesis.getVoices();
+  TTS.voice = vs.find(v => /^de[-_]DE/i.test(v.lang) && /(anna|katja|marlene|vicki|petra|google|female)/i.test(v.name))
+    || vs.find(v => /^de[-_]DE/i.test(v.lang)) || vs.find(v => /^de/i.test(v.lang)) || null;
+}
+if (TTS.ok) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+function speak(text, opt = {}) {
+  return new Promise(res => {
+    if (!TTS.ok || !S.set.speech || !text) { res(); return; }
+    try {
+      if (!opt.keep) speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'de-DE'; u.rate = opt.rate || S.set.rate; u.pitch = 1.05;
+      if (TTS.voice) u.voice = TTS.voice;
+      let fin = false; const f = () => { if (!fin) { fin = true; res(); } };
+      u.onend = f; u.onerror = f;
+      setTimeout(f, 1800 + text.length * 160 / u.rate); // Sicherung für Geräte ohne "end"-Ereignis
+      speechSynthesis.speak(u);
+    } catch (e) { res(); }
+  });
+}
+
+/* ---- Töne (Web Audio) ---- */
+let AC = null;
+function ac() {
+  if (!S.set.sound) return null;
+  try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) { return null; }
+  return AC;
+}
+function tone(f, t0, d, type = 'sine', vol = 0.13) {
+  const a = ac(); if (!a) return;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.value = f; o.connect(g); g.connect(a.destination);
+  const t = a.currentTime + t0;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+  o.start(t); o.stop(t + d + 0.05);
+}
+const Snd = {
+  ok() { tone(523, 0, .15); tone(659, .12, .15); tone(784, .24, .25); },
+  star() { tone(988, 0, .12, 'triangle'); tone(1319, .1, .22, 'triangle'); },
+  honk() { tone(196, 0, .22, 'sawtooth', .09); tone(247, .2, .3, 'sawtooth', .09); },
+  pop() { tone(440, 0, .1, 'triangle'); },
+  fan() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i * .13, .22, 'triangle')); }
+};
+
+/* ---- kleine UI-Helfer ---- */
+function toast(t) { const e = document.createElement('div'); e.className = 'toast'; e.textContent = t; document.body.appendChild(e); setTimeout(() => e.remove(), 2600); }
+function modal(html) { closeModal(); const m = document.createElement('div'); m.id = 'modal'; m.innerHTML = '<div class="mbox">' + html + '</div>'; document.body.appendChild(m); }
+function closeModal() { const m = $('#modal'); if (m) m.remove(); }
+function confetti(n = 60) {
+  const box = document.createElement('div'); box.className = 'confetti';
+  const cols = ['#ffc928', '#ff8a1f', '#1d5fd1', '#d6312b', '#2e9e4f', '#fff'];
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('i');
+    p.style.cssText = `left:${Math.random() * 100}%;background:${rnd(cols)};animation-delay:${Math.random() * .7}s;animation-duration:${1.8 + Math.random() * 1.4}s;transform:rotate(${Math.random() * 360}deg)`;
+    box.appendChild(p);
+  }
+  document.body.appendChild(box); setTimeout(() => box.remove(), 4000);
+}
+const spk = text => `<button class="spk" data-act="say" data-say="${esc(text)}" aria-label="Vorlesen">🔊</button>`;
+function withName(t) { return (S.name && Math.random() < 0.4) ? t.replace(/[!.]$/, ', ' + S.name + '!') : t; }
+
+/* ---- Wörter als HTML (mit Silbenfärbung) ---- */
+function wordHTML(spec, cls = '', attrs = '') {
+  const parts = spec.split('|');
+  return `<span class="w ${cls} ${parts.length < 2 ? 'one' : ''}" data-t="${esc(parts.join(''))}" ${attrs}>${parts.map(p => `<span class="sy">${esc(p)}</span>`).join('')}</span>`;
+}
+/* Geschichte als HTML: jedes Wort antippbar; Baustellenwörter bekommen beim ersten Auftreten ein Bild */
+function storyHTML(sents) {
+  const seen = new Set(); let idx = 0;
+  return sents.map(s => '<div class="line">' + s.split(' ').map(tok => {
+    const m = tok.match(/^([^A-Za-zÄÖÜäöüß|]*)([A-Za-zÄÖÜäöüß|]+)(.*)$/);
+    if (!m) return esc(tok);
+    const spec = m[2], k = plain(spec).toLowerCase();
+    const h = esc(m[1]) + wordHTML(spec, 'tap', `data-i="${idx++}"`) + esc(m[3]);
+    if (PICS[k] && !seen.has(k)) { seen.add(k); return `<span class="wp"><span class="pic">${pic(k)}</span><span>${h}</span></span>`; }
+    return h;
+  }).join(' ') + '</div>').join('');
+}
+function pic(k) { const v = PICS[k]; if (!v) return ''; return v.startsWith('veh:') ? (v === 'veh:bagger' ? baggi('', true) : vehSVG(v.slice(4))) : v; }
+
+/* Wort laut lesen, dabei leuchten die Silben nacheinander */
+function readWord(el) {
+  const sy = $$('.sy', el), step = Math.max(280, 430 / S.set.rate);
+  $$('.w.reading').forEach(x => x.classList.remove('reading'));
+  el.classList.add('reading');
+  sy.forEach((s, i) => setTimeout(() => { sy.forEach(x => x.classList.remove('lit')); s.classList.add('lit'); }, i * step));
+  const done = () => { el.classList.remove('reading'); sy.forEach(x => x.classList.remove('lit')); };
+  if (!TTS.ok || !S.set.speech) { setTimeout(done, sy.length * step + 500); return Promise.resolve(); }
+  return speak(el.dataset.t).then(() => setTimeout(done, 200));
+}
+
+/* =====================================================================
+   3. GRAFIKEN
+   ===================================================================== */
+const eq = k => S.unl.includes('a:' + k) && S.eq[k];
+
+/* Baggi, der kleine gelbe Bagger */
+function baggi(cls = '', noacc = false) {
+  const helm = !noacc && eq('helm'), blink = !noacc && eq('blink'), hupe = !noacc && eq('hupe');
+  return `<svg class="baggi ${cls}" viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
+<g class="arm"><line x1="64" y1="76" x2="24" y2="44" stroke="#e39a00" stroke-width="13" stroke-linecap="round"/><line x1="24" y1="44" x2="16" y2="86" stroke="#e39a00" stroke-width="11" stroke-linecap="round"/><path d="M2 84h28l-4 24H6z" fill="#5a5f66"/></g>
+<rect x="38" y="106" width="130" height="32" rx="16" fill="#333"/>
+<circle cx="62" cy="122" r="9" fill="#9aa0a6"/><circle cx="103" cy="122" r="9" fill="#9aa0a6"/><circle cx="144" cy="122" r="9" fill="#9aa0a6"/>
+<rect x="48" y="62" width="112" height="50" rx="12" fill="#ffc928"/>
+<rect x="48" y="98" width="112" height="7" fill="#222" opacity=".15"/>
+<path d="M96 64V32a9 9 0 0 1 9-9h34a9 9 0 0 1 9 9v32z" fill="#ffc928"/>
+<rect x="104" y="30" width="38" height="28" rx="6" fill="#d8efff"/>
+<g class="eyes"><circle cx="115" cy="41" r="7.5" fill="#fff" stroke="#333" stroke-width="1.5"/><circle cx="131" cy="41" r="7.5" fill="#fff" stroke="#333" stroke-width="1.5"/><circle cx="117" cy="42" r="3.6" fill="#222"/><circle cx="133" cy="42" r="3.6" fill="#222"/></g>
+<path d="M115 51q8 6 16 0" stroke="#333" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+${helm ? '<path d="M100 25a21 18 0 0 1 42 0z" fill="#ff7a00"/><rect x="96" y="23" width="50" height="5" rx="2" fill="#e05f00"/>' : ''}
+${blink ? '<rect class="beacon" x="148" y="50" width="10" height="12" rx="3" fill="#ff8a1f"/>' : ''}
+${hupe ? '<path d="M70 62l-6-12h14l6 12z" fill="#555"/><circle cx="64" cy="49" r="4" fill="#d6312b"/>' : ''}
+</svg>`;
+}
+
+/* Fahrzeuge für Garage, Hof und Bilder */
+function vehSVG(id) {
+  const win = '#d8efff', wh = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#333"/><circle cx="${x}" cy="${y}" r="${r * .5}" fill="#bbb"/>`;
+  let b = '';
+  if (id === 'kran') b = `<rect x="8" y="48" width="104" height="14" rx="4" fill="#f08a24"/><rect x="76" y="30" width="30" height="20" rx="4" fill="#f08a24"/><rect x="88" y="34" width="14" height="10" fill="${win}"/><line x1="22" y1="46" x2="66" y2="8" stroke="#555" stroke-width="7" stroke-linecap="round"/><line x1="66" y1="8" x2="66" y2="34" stroke="#222" stroke-width="2"/><rect x="62" y="34" width="8" height="6" fill="#555"/>${wh(28, 66, 9)}${wh(52, 66, 9)}${wh(92, 66, 9)}`;
+  else if (id === 'kipper') b = `<rect x="8" y="52" width="100" height="10" rx="3" fill="#444"/><g transform="rotate(-10 12 52)"><rect x="12" y="26" width="60" height="26" rx="3" fill="#388e3c"/></g><rect x="78" y="32" width="28" height="22" rx="5" fill="#4caf50"/><rect x="92" y="36" width="12" height="10" fill="${win}"/>${wh(26, 64, 10)}${wh(54, 64, 10)}${wh(92, 64, 10)}`;
+  else if (id === 'walze') b = `<rect x="40" y="30" width="62" height="28" rx="6" fill="#9aa3ad"/><rect x="70" y="14" width="26" height="20" rx="4" fill="#9aa3ad"/><rect x="76" y="18" width="14" height="11" fill="${win}"/><circle cx="32" cy="52" r="22" fill="#6b737c" stroke="#444" stroke-width="3"/><circle cx="32" cy="52" r="8" fill="#bbb"/>${wh(94, 60, 15)}`;
+  else if (id === 'radlader') b = `<rect x="38" y="34" width="62" height="24" rx="6" fill="#d6312b"/><rect x="62" y="16" width="28" height="22" rx="4" fill="#d6312b"/><rect x="68" y="20" width="14" height="12" fill="${win}"/><line x1="40" y1="42" x2="16" y2="52" stroke="#444" stroke-width="6" stroke-linecap="round"/><polygon points="2,46 24,46 22,66 4,66" fill="#666"/>${wh(52, 62, 14)}${wh(92, 62, 14)}`;
+  else if (id === 'betonmischer') b = `<rect x="8" y="52" width="104" height="10" rx="3" fill="#444"/><ellipse cx="46" cy="36" rx="30" ry="20" transform="rotate(-18 46 36)" fill="#1d6fe0"/><path d="M26 22l40 28M34 18l40 28" stroke="#fff" stroke-width="3" opacity=".6"/><rect x="80" y="32" width="28" height="22" rx="5" fill="#1d6fe0"/><rect x="94" y="36" width="12" height="10" fill="${win}"/>${wh(26, 64, 10)}${wh(54, 64, 10)}${wh(92, 64, 10)}`;
+  else if (id === 'planierraupe') b = `<rect x="38" y="32" width="48" height="24" rx="4" fill="#8d6e63"/><rect x="56" y="14" width="26" height="22" rx="4" fill="#8d6e63"/><rect x="62" y="18" width="14" height="12" fill="${win}"/><rect x="26" y="52" width="72" height="22" rx="11" fill="#333"/><circle cx="40" cy="63" r="6" fill="#999"/><circle cx="84" cy="63" r="6" fill="#999"/><rect x="16" y="52" width="24" height="5" fill="#555"/><rect x="6" y="28" width="10" height="42" rx="3" fill="#666"/>`;
+  return `<svg class="veh" viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg">${b}</svg>`;
+}
+
+/* Wie viele Bauteile sind schon gebaut? Daraus: Projekt + Anzahl Teile */
+function projectAt(built) {
+  let b = built, i = 0;
+  while (b >= PROJECTS[i % PROJECTS.length].parts.length) { b -= PROJECTS[i % PROJECTS.length].parts.length; i++; }
+  return { proj: PROJECTS[i % PROJECTS.length], num: i, built: b };
+}
+function siteSVG(proj, count, popIdx) {
+  const parts = proj.parts.slice(0, count).map((p, i) => `<g class="part ${i === popIdx ? 'pop' : ''}">${p}</g>`).join('');
+  return `<svg class="siteSvg" viewBox="0 0 400 230" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">
+<rect width="400" height="230" fill="#bfe6ff"/><circle cx="360" cy="34" r="20" fill="#ffe27a"/>
+<ellipse cx="80" cy="40" rx="34" ry="12" fill="#fff"/><ellipse cx="104" cy="34" rx="24" ry="10" fill="#fff"/><ellipse cx="250" cy="58" rx="30" ry="10" fill="#fff"/>
+<rect y="190" width="400" height="40" fill="#8bc34a"/>${proj.base}${parts}
+<path d="M0 218h400" stroke="#6da12f" stroke-width="2" stroke-dasharray="10 8"/></svg>`;
+}
+
+/* =====================================================================
+   4. BILDSCHIRME: START, HOME, LAGER, GARAGE, BELOHNUNGEN
+   ===================================================================== */
+const MAIN = $('#main');
+function show(html, cls = '') {
+  stopAll();
+  MAIN.className = cls; MAIN.innerHTML = html;
+  document.body.classList.toggle('nosyl', !S.set.syl);
+  document.body.classList.toggle('nospeech', !TTS.ok || !S.set.speech);
+}
+function topbar(title, withBricks) {
+  let mid = `<div class="ttl">${esc(title || '')}</div>`;
+  if (withBricks && G) mid = `<div class="bricks">${G.tasks.map((_, i) => `<i class="${i < G.i ? 'on' : ''}"></i>`).join('')}</div>`;
+  return `<div class="topbar"><button class="btn sq" data-act="home" aria-label="Zur Baustelle">🏠</button>${mid}<div class="starpill">⭐ <span id="sc">${S.stars}</span></div></div>`;
+}
+function addStars(n) {
+  ensureDay(); S.stars += n; S.day.n += n; save();
+  const e = $('#sc'); if (e) e.textContent = S.stars;
+}
+
+/* Sammel-System: Wörter */
+const W = p => (S.w[p] = S.w[p] || { c: 0, s: 0, miss: 0, heard: 0, seen: 0, col: false, lastRound: -1 });
+const isCol = p => !!(S.w[p] && S.w[p].col);
+const collectedWords = () => WORDS.filter(w => isCol(w.p));
+function levelInfo() {
+  const arr = [];
+  LEVELS.forEach((L, i) => {
+    const ws = L.words.map(plain), got = ws.filter(isCol).length;
+    arr.push({ i, total: ws.length, got, unl: i === 0 || (arr[i - 1].got / arr[i - 1].total >= 0.8) });
+  });
+  return arr;
+}
+const unlockedLevels = () => levelInfo().filter(l => l.unl).length;
+
+/* ---- Startbildschirm ---- */
+function renderStart() {
+  show(`<div class="startscr" style="flex:1;display:flex;flex-direction:column">
+    <h1>Lesebaustelle</h1>${baggi('bob')}
+    <button class="btn big orange" style="max-width:420px" data-act="begin">Los geht's!</button></div>`, 'startscr');
+}
+let greeted = false;
+
+/* ---- Home ---- */
+function renderHome() {
+  ensureDay();
+  const tot = Math.floor(S.stars / STERNE_PRO_TEIL);
+  let showProj, cnt, pop = -1, fertig = false;
+  const ps = projectAt(tot);
+  if (S.shownParts < tot) {
+    if (ps.built === 0 && tot > 0) { const prev = projectAt(tot - 1); showProj = prev.proj; cnt = prev.proj.parts.length; pop = cnt - 1; fertig = true; }
+    else { showProj = ps.proj; cnt = ps.built; pop = ps.built - 1; }
+    S.shownParts = tot; save();
+  } else { showProj = ps.proj; cnt = ps.built; }
+  const got = collectedWords().length;
+  const gp = Math.min(1, S.day.n / TAGESZIEL_STERNE);
+  const ready = S.day.n >= TAGESZIEL_STERNE && !S.day.chest;
+  const yard = S.unl.filter(u => u.startsWith('v:')).map(u => vehSVG(u.slice(2))).join('');
+  let hello = S.name ? `Hallo ${esc(S.name)}! Was bauen wir heute?` : 'Hallo! Was bauen wir heute?';
+  if (fertig) hello = `Fertig! Das ${esc(showProj.name)} steht! Als Nächstes: ${esc(PROJECTS[(ps.num) % PROJECTS.length].name)}.`;
+  else if (pop >= 0) hello = 'Schau mal, ein neues Bauteil!';
+  show(`<div class="home">
+    <div class="site card">
+      <div class="hbubble"><div class="bubble" id="hb">${hello}</div></div>
+      ${siteSVG(showProj, cnt, pop)}
+      <div class="yard">${yard}</div>
+      <div class="homebaggi bwrap" data-act="baggitap">${baggi('')}</div>
+    </div>
+    <div class="side">
+      <button class="lager" data-act="lager">🧱 <span>Wörter-Lager: <b>${got}</b></span></button>
+      <div class="goal"><div class="gl">Tagesziel</div><div class="gbar"><i style="width:${gp * 100}%"></i></div>
+        <button class="chestbtn ${ready ? 'ready' : ''}" data-act="chest" aria-label="Werkzeugkiste">${S.day.chest ? '✅' : '🧰'}</button></div>
+      <button class="btn big" data-act="blitz">⚡ Blitzwörter</button>
+      <button class="btn big orange" data-act="path">🛣️ Lesepfad</button>
+      <div class="rowbtn"><button class="btn grey" data-act="garage">🚜 Garage</button></div>
+    </div>
+    <button id="gear" aria-label="Eltern"><i></i>⚙️</button>
+  </div>`, '');
+  gearBind();
+  if (fertig) { confetti(); Snd.fan(); }
+  else if (pop >= 0) Snd.pop();
+  if (S.day.chest === false && S.day.n >= TAGESZIEL_STERNE) later(openChest, 900);
+  if (!greeted || fertig || pop >= 0) { greeted = true; later(() => speak(plainText(hello)), 400); }
+}
+const plainText = h => h.replace(/&amp;/g, '&');
+
+/* Zahnrad: 3 Sekunden gedrückt halten = Elternbereich */
+function gearBind() {
+  const g = $('#gear'); if (!g) return; let tm = null;
+  g.addEventListener('pointerdown', () => { g.classList.add('hold'); tm = setTimeout(() => { g.classList.remove('hold'); renderParent(); }, 3000); });
+  const cancel = () => { clearTimeout(tm); g.classList.remove('hold'); };
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => g.addEventListener(ev, cancel));
+  g.addEventListener('click', () => toast('Für Eltern: Zahnrad 3 Sekunden gedrückt halten'));
+  g.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+/* ---- Wörter-Lager ---- */
+function renderLager() {
+  const col = collectedWords(), n = col.length;
+  const act = chooseActive();
+  show(`${topbar('Wörter-Lager')}<div class="scr">
+    <h2>Du kennst schon ${n} ${n === 1 ? 'Wort' : 'Wörter'} auf einen Blick!</h2>
+    ${TTS.ok ? spk(`Du kennst schon ${n} Wörter auf einen Blick!`) : ''}
+    <div class="wall">${col.map(w => `<div class="brick">${wordHTML(w.spec, 'tap')}</div>`).join('') || '<div class="hint">Hier landen deine Ziegelsteine.</div>'}</div>
+    ${act.length ? `<div class="hint" style="text-align:center">Das üben wir gerade:</div><div class="wall">${act.map(w => `<div class="brick empty"><span class="w one" style="padding:10px 14px">${esc(w.p)}</span></div>`).join('')}</div>` : ''}
+  </div>`);
+  later(() => speak(`Du kennst schon ${n} Wörter auf einen Blick!`), 300);
+}
+
+/* ---- Garage ---- */
+function renderGarage() {
+  const cards = [`<button class="gcard" data-act="veh" data-id="bagger" data-name="Baggi">${baggi('', false)}Baggi</button>`]
+    .concat(Object.keys(VEHICLES).map(id => {
+      const has = S.unl.includes('v:' + id);
+      return `<button class="gcard ${has ? '' : 'lock'}" data-act="veh" data-id="${id}" data-name="${has ? VEHICLES[id] : '?'}">${vehSVG(id)}${has ? VEHICLES[id] : '?'}</button>`;
+    })).join('');
+  const acc = Object.keys(ACCESSORIES).map(k => {
+    const has = S.unl.includes('a:' + k);
+    return `<button class="btn ${has && S.eq[k] ? 'on' : 'grey'}" data-act="acc" data-k="${k}" ${has ? '' : 'disabled'}>${has ? '' : '🔒 '}${ACCESSORIES[k]}</button>`;
+  }).join('');
+  show(`${topbar('Garage')}<div class="scr"><div class="garage">${cards}</div>
+    <h2 style="font-size:24px">Baggis Zubehör</h2><div class="acc">${acc}</div>
+    <div class="hint" style="text-align:center">Neue Fahrzeuge findest du in der Werkzeugkiste!</div></div>`);
+}
+
+/* ---- Werkzeugkiste (Tagesziel) ---- */
+const chestSVG = `<svg class="chest" viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
+<rect x="20" y="70" width="160" height="70" rx="8" fill="#d6312b" stroke="#222" stroke-width="5"/>
+<rect x="20" y="96" width="160" height="10" fill="#ffc928" opacity=".8"/><rect x="88" y="88" width="24" height="26" rx="4" fill="#ffc928" stroke="#222" stroke-width="3"/>
+<g class="lid"><rect x="20" y="40" width="160" height="34" rx="8" fill="#e8574f" stroke="#222" stroke-width="5"/><path d="M70 40v-12a8 8 0 0 1 8-8h44a8 8 0 0 1 8 8v12" fill="none" stroke="#222" stroke-width="6"/></g></svg>`;
+function openChest() {
+  ensureDay();
+  if (S.day.n < TAGESZIEL_STERNE) { toast(`Noch ${TAGESZIEL_STERNE - S.day.n} Sterne bis zur Werkzeugkiste!`); return; }
+  if (S.day.chest) { toast('Die Werkzeugkiste für heute ist schon offen. Bis morgen!'); return; }
+  modal(`<h2>Tagesziel geschafft!</h2>${chestSVG}<button class="btn big orange" data-act="chestopen">Aufmachen!</button>`);
+  speak('Tagesziel geschafft! Mach die Werkzeugkiste auf!');
+}
+function chestPrize() {
+  const next = UNLOCK_ORDER.find(u => !S.unl.includes(u));
+  if (!next) { addStars(5); return { icon: '⭐', text: '5 Extra-Sterne!' }; }
+  S.unl.push(next);
+  const [t, id] = next.split(':');
+  if (t === 'v') return { icon: vehSVG(id), text: `Neu in der Garage: ${VEHICLES[id]}!` };
+  S.eq[id] = true;
+  return { icon: { helm: '⛑️', blink: '🚨', hupe: '📯' }[id], text: `Neu für Baggi: ${ACCESSORIES[id]}!` };
+}
+
+/* ---- Belohnung nach einer Runde ---- */
+function maybeChest() { ensureDay(); if (S.day.n >= TAGESZIEL_STERNE && !S.day.chest) later(openChest, 1800); }
+
+/* =====================================================================
+   5. BLITZWÖRTER
+   ===================================================================== */
+let G = null; // aktuelle Runde
+
+/* Neue Wörter: 3–5 Wörter, die gerade geübt werden */
+function chooseActive() {
+  const li = levelInfo();
+  const list = WORDS.filter(w => !isCol(w.p) && (w.lvl >= LEVELS.length || li[w.lvl].unl));
+  const prog = w => (S.w[w.p] ? S.w[w.p].c + (S.w[w.p].seen ? .5 : 0) : 0);
+  const ord = w => w.lvl >= LEVELS.length ? -1 : w.lvl;
+  return list.map((w, i) => ({ w, i })).sort((a, b) => (prog(b.w) - prog(a.w)) || (ord(a.w) - ord(b.w)) || (a.i - b.i)).slice(0, 4).map(x => x.w);
+}
+/* Ablenker */
+function pickDistractors(word, n, sim) {
+  const li = levelInfo();
+  const pool = WORDS.filter(w => w.p !== word && (w.lvl === 0 || w.lvl >= LEVELS.length || li[w.lvl].unl)).map(w => w.p);
+  const out = [];
+  if (sim >= 1 && CONFUSABLE[word]) shuffle(CONFUSABLE[word].filter(x => x !== word)).slice(0, sim >= 2 ? n : Math.ceil(n / 2)).forEach(x => out.push(x));
+  const score = p => (p[0] !== word[0] ? 2 : 0) + Math.min(3, Math.abs(p.length - word.length)) + Math.random() * 1.5;
+  const rest = pool.filter(p => !out.includes(p)).sort((a, b) => score(b) - score(a));
+  const rest2 = pool.filter(p => !out.includes(p));
+  for (const p of rest) { if (out.length >= n) break; out.push(p); }
+  for (const p of shuffle(rest2)) { if (out.length >= n) break; if (!out.includes(p)) out.push(p); }
+  return out.slice(0, n);
+}
+
+/* Aufgaben einer Runde zusammenstellen: 2 Aufwärm-Wörter, dann neue + Wiederholung */
+function buildTasks() {
+  const N = S.set.roundLen, tasks = [];
+  const col = collectedWords(), act = chooseActive();
+  // Aufwärmen: sicher gekannte Wörter
+  let warm = shuffle(col.filter(w => W(w.p).s >= 2)).slice(0, 2);
+  if (warm.length < 2) warm = warm.concat(shuffle(col.filter(w => !warm.includes(w))).slice(0, 2 - warm.length));
+  if (warm.length < 2) { const easy = WORDS.filter(w => w.lvl === 0 && ['ich', 'du', 'da', 'ja', 'nein', 'so', 'und'].includes(w.p) && !warm.includes(w)); warm = warm.concat(shuffle(easy).slice(0, 2 - warm.length)); }
+  let games = [], gi = 0;
+  const nextGame = () => {
+    if (!games.length) { games = shuffle(TTS.ok && S.set.speech ? ['kran', 'buddeln', 'foerder'] : ['kran', 'foerder']); if (tasks.length && games[0] === tasks[tasks.length - 1].game) games.push(games.shift()); }
+    return games.shift();
+  };
+  warm.forEach(w => tasks.push({ word: w.p, game: nextGame(), easy: true }));
+  let ai = 0, last = warm.length ? warm[warm.length - 1].p : '';
+  const revPool = shuffle(col.filter(w => !warm.includes(w))).sort((a, b) => (W(a.p).s - W(b.p).s));
+  let ri = 0;
+  while (tasks.length < N) {
+    const k = tasks.length - warm.length;
+    let w = null;
+    if (revPool.length && (k % 3 === 2 || !act.length)) { w = revPool[ri++ % revPool.length]; }
+    else if (act.length) { w = act[ai++ % act.length]; }
+    else if (col.length) { w = rnd(col); }
+    if (!w) w = rnd(WORDS);
+    if (w.p === last) { const others = act.concat(revPool).filter(x => x.p !== last); if (others.length) w = rnd(others); }
+    last = w.p; tasks.push({ word: w.p, game: nextGame(), easy: false });
+  }
+  return tasks;
+}
+
+function startBlitz() {
+  S.round++; save();
+  G = { tasks: buildTasks(), i: 0, stars: 0, newCol: [], lv0: unlockedLevels(), parts0: Math.floor(S.stars / STERNE_PRO_TEIL), help: null };
+  nextTask();
+}
+function nextTask() {
+  if (G.i >= G.tasks.length) return endRound();
+  const t = G.tasks[G.i];
+  t.flash = t.easy ? 3000 : clamp(S.flashMs, 800, 3000);
+  t.sim = t.easy ? 0 : S.sim;
+  G.help = null;
+  ({ kran: playKran, buddeln: playBuddeln, foerder: playFoerder })[t.game](t);
+}
+/* Rahmen für alle Spiele */
+function gameFrame(arena, instr, o = {}) {
+  show(`${topbar('', true)}<div class="game">
+    <div class="instr">${spk(instr)}<span>${instr}</span>${o.extra || ''}</div>
+    <div class="arena ${o.cls || ''}" id="arena">${arena}</div>
+    <div class="foot"><div class="bwrap" data-act="baggitap">${baggi('')}</div><div class="bubble" id="bubble">${o.bubble || 'Los geht\'s!'}</div>${o.kipper ? `<div class="kip" id="kip">${vehSVG('kipper')}</div>` : ''}</div>
+  </div>`, '');
+}
+function say(text, talk = true) { const b = $('#bubble'); if (b) b.textContent = text; if (talk) speak(text); }
+function baggiAnim(c) { const b = $('.foot .baggi,.homebaggi .baggi'); if (!b) return; b.classList.remove('hop', 'wiggle', 'lift'); void b.getBoundingClientRect(); b.classList.add(c); }
+
+/* Ergebnis einer Aufgabe buchen. res: {ok, first, helped} */
+function finishTask(t, res) {
+  const w = W(t.word); w.seen++;
+  let kind = 'miss';
+  if (res.helped) { w.heard++; w.s = Math.max(0, w.s - 1); kind = 'helped'; }
+  else if (res.ok && res.first) {
+    if (w.lastRound !== S.round) { w.c++; w.lastRound = S.round; }
+    w.s = Math.min(6, w.s + 1); kind = 'first';
+    if (!w.col && w.c >= 3) { w.col = true; G.newCol.push(t.word); }
+  } else { w.miss++; w.s = Math.max(0, w.s - 1); } // still: kein Hinweis für das Kind
+  // Schwierigkeit anpassen (Ziel: ca. 80 % gelingen)
+  if (!t.easy) {
+    S.recent.push(kind === 'first' ? 1 : 0); if (S.recent.length > 8) S.recent.shift();
+    if (S.recent.length >= 5) {
+      const rate = S.recent.reduce((a, b) => a + b, 0) / S.recent.length;
+      if (rate > 0.9) { S.flashMs = Math.max(800, S.flashMs * 0.88); if (Math.random() < 0.5) S.sim = Math.min(2, S.sim + 1); S.recent = []; }
+      else if (rate < 0.7) { S.flashMs = Math.min(3000, S.flashMs * 1.15); S.sim = Math.max(0, S.sim - 1); S.recent = []; }
+    }
+  }
+  if (res.ok) {
+    G.stars++; addStars(1); Snd.star();
+    const a = $('#arena'); if (a) { const f = document.createElement('div'); f.className = 'fstar'; f.textContent = '⭐ +1'; a.appendChild(f); }
+  }
+  save();
+  G.i++;
+  const br = $$('.bricks i'); br.forEach((b, i) => b.classList.toggle('on', i < G.i));
+  later(nextTask, res.ok ? 1700 : 2800);
+}
+
+/* Hilfe-Knopf (Wort vorlesen, zählt nicht als "auf einen Blick erkannt") */
+const helpBtn = `<button class="spk" data-act="help" aria-label="Wort vorlesen">👂</button>`;
+
+/* ---- a) Kran-Blitz ---- */
+function playKran(t) {
+  const opts = shuffle([t.word, ...pickDistractors(t.word, 2, t.sim)]);
+  gameFrame(`<div class="craneTower"></div><div class="craneArm"></div>
+    <div class="signzone"><div class="sign off" id="sign"><div class="rope"></div><div class="board">${wordHTML(specOf(t.word), 'big')}</div></div></div>
+    <div class="choices hide" id="choices">${opts.map(o => `<button class="crate" data-w="${esc(o)}">${wordHTML(specOf(o))}</button>`).join('')}</div>`,
+    'Merk dir das Wort auf dem Schild!', { kipper: true, cls: 'kran', extra: helpBtn, bubble: 'Gut aufpassen!' });
+  let tries = 0, helped = false, over = false;
+  const sign = $('#sign'), ch = $('#choices');
+  const flash = ms => { ch.classList.add('hide'); sign.className = 'sign in'; later(() => { sign.className = 'sign out'; later(() => ch.classList.remove('hide'), 650); }, ms + 800); };
+  later(() => flash(t.flash), 700);
+  G.help = () => { if (over) return; helped = true; flash(2600); speak(t.word); };
+  $$('.crate', ch).forEach(b => b.addEventListener('click', () => {
+    if (over || b.classList.contains('gone')) return;
+    ac(); // iPad: Audio nach Berührung freischalten
+    if (b.dataset.w === t.word) {
+      over = true; liftCrate(b); say(withName(rnd(LOB)), true); Snd.ok();
+      finishTask(t, { ok: true, first: tries === 0, helped });
+    } else {
+      tries++; b.classList.add('shake', 'gone');
+      if (tries === 1) { say('Fast! Probier nochmal.'); later(() => flash(t.flash + 1200), 1500); }
+      else {
+        over = true; const right = $$('.crate', ch).find(x => x.dataset.w === t.word);
+        right.classList.add('glow'); say(`Schau mal: ${t.word}. Weiter geht's!`);
+        later(() => { right.classList.remove('glow'); liftCrate(right); }, 2200);
+        finishTask(t, { ok: false, first: false, helped });
+      }
+    }
+  }));
+}
+function liftCrate(b) {
+  const k = $('#kip'); baggiAnim('lift');
+  if (!k) return;
+  const r = b.getBoundingClientRect(), kr = k.getBoundingClientRect();
+  b.classList.add('flying');
+  b.style.transform = `translate(${kr.left + kr.width * .45 - (r.left + r.width / 2)}px,${kr.top + kr.height * .2 - (r.top + r.height / 2)}px) scale(.35)`;
+  b.style.opacity = '0';
+  setTimeout(() => { k.classList.add('bump'); setTimeout(() => k.classList.remove('bump'), 300); }, 950);
+}
+
+/* ---- b) Bagger-Buddeln ---- */
+function playBuddeln(t) {
+  const n = t.sim >= 1 ? 4 : 3;
+  const opts = shuffle([t.word, ...pickDistractors(t.word, n - 1, t.sim)]);
+  gameFrame(`<div class="mounds">${opts.map(o => `<button class="mound" data-w="${esc(o)}">${wordHTML(specOf(o))}<span class="treasure">💎</span></button>`).join('')}</div>`,
+    'Hör gut zu! Wo ist das Wort?', { extra: `<button class="spk" data-act="help" aria-label="Nochmal hören">🔊</button>`, bubble: 'Hör gut zu!' });
+  let tries = 0, over = false;
+  const say1 = () => speak(t.word);
+  later(say1, 700);
+  G.help = say1; // hier nur "nochmal hören" – zählt nicht als Hilfe
+  $$('.mound').forEach(b => b.addEventListener('click', () => {
+    if (over || b.classList.contains('gone')) return;
+    ac();
+    if (b.dataset.w === t.word) {
+      over = true; baggiAnim('lift'); b.classList.add('dug'); Snd.ok(); say(withName(rnd(LOB)));
+      finishTask(t, { ok: true, first: tries === 0, helped: false });
+    } else {
+      tries++; b.classList.add('shake', 'gone');
+      if (tries === 1) { say('Fast! Probier nochmal.'); later(say1, 1800); }
+      else {
+        over = true; const right = $$('.mound').find(x => x.dataset.w === t.word);
+        right.classList.add('glow'); say(`Hier ist es: ${t.word}.`);
+        later(() => { right.classList.remove('glow'); right.classList.add('dug'); baggiAnim('lift'); }, 2000);
+        finishTask(t, { ok: false, first: false, helped: false });
+      }
+    }
+  }));
+}
+
+/* ---- c) Förderband ---- */
+function playFoerder(t) {
+  gameFrame(`<div class="target"><small>Suche:</small>${wordHTML(specOf(t.word))}<span class="dots"><i></i><i></i></span></div>
+    <div class="beltgap"></div><div class="belt" id="belt"></div>`,
+    'Tippe jedes Mal, wenn dieses Wort kommt!', { kipper: true, cls: 'foerder', extra: helpBtn, bubble: 'Ich pass auf!' });
+  const belt = $('#belt'), dist = pickDistractors(t.word, t.sim >= 1 ? 4 : 3, t.sim);
+  let wrongs = 0, caught = 0, helped = false, hint = false, over = false;
+  // Warteschlange: 2 Zielwörter unter Ablenkern
+  const makeQueue = () => {
+    const q = []; let prev = '';
+    for (let i = 0; i < 8; i++) { let w; do { w = rnd(dist); } while (w === prev && dist.length > 1); q.push(w); prev = w; }
+    q[1 + Math.floor(Math.random() * 2)] = t.word; q[5 + Math.floor(Math.random() * 2)] = t.word;
+    return q;
+  };
+  let queue = makeQueue(), qi = 0, items = [];
+  const speed = (t.easy ? 80 : 105) * clamp(1.3 - S.flashMs / 5000, 0.8, 1.15);
+  const GAP = 44;
+  function spawn(x) {
+    if (qi >= queue.length) return false;
+    const word = queue[qi++];
+    const pos = document.createElement('div'); pos.className = 'bpos';
+    pos.innerHTML = `<button class="bitem">${wordHTML(specOf(word))}</button>`;
+    belt.appendChild(pos);
+    const it = { el: pos, btn: pos.firstChild, x, w: pos.offsetWidth, word, isT: word === t.word, done: false };
+    pos.style.transform = `translateX(${x}px)`;
+    items.push(it);
+    it.btn.addEventListener('pointerdown', e => { e.preventDefault(); tap(it); });
+    return true;
+  }
+  function tap(it) {
+    if (over || it.done) return;
+    ac();
+    if (it.isT) {
+      it.done = true; caught++;
+      $$('.dots i')[caught - 1].classList.add('on');
+      dropItem(it); Snd.ok();
+      if (caught >= 2) { over = true; baggiAnim('hop'); say(withName(rnd(LOB))); finishTask(t, { ok: true, first: wrongs === 0, helped }); }
+      else say('Richtig! Noch eins!', false);
+    } else {
+      wrongs++; it.btn.classList.remove('shake'); void it.btn.offsetWidth; it.btn.classList.add('shake');
+      if (wrongs === 1) say('Fast! Probier nochmal.');
+      else if (wrongs === 2) { hint = true; say(`Achtung, das Wort heißt: ${t.word}.`); }
+    }
+  }
+  function dropItem(it) {
+    const r = it.btn.getBoundingClientRect(), k = $('#kip'), kr = k ? k.getBoundingClientRect() : r;
+    const c = document.createElement('div'); c.className = 'fallclone'; c.innerHTML = it.btn.innerHTML;
+    c.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px`;
+    document.body.appendChild(c);
+    requestAnimationFrame(() => { c.style.transform = `translate(${kr.left + kr.width * .4 - r.left}px,${kr.top + kr.height * .3 - r.top}px) scale(.4) rotate(20deg)`; c.style.opacity = '0'; });
+    setTimeout(() => c.remove(), 1400);
+    it.el.remove(); items = items.filter(x => x !== it);
+    if (k) { k.classList.add('bump'); setTimeout(() => k.classList.remove('bump'), 300); }
+  }
+  G.help = () => { if (over) return; helped = true; speak(t.word); };
+  let W0 = belt.clientWidth, x0 = W0 * 0.3, prevT = 0;
+  const myId = T.id;
+  while (x0 < W0) { if (!spawn(x0)) break; x0 += items[items.length - 1].w + GAP; }
+  function frame(ts) {
+    if (myId !== T.id || over) return;
+    const dt = prevT ? Math.min(0.05, (ts - prevT) / 1000) : 0; prevT = ts;
+    W0 = belt.clientWidth;
+    for (const it of items.slice()) {
+      it.x -= speed * dt; it.el.style.transform = `translateX(${it.x}px)`;
+      if (hint && it.isT) it.btn.classList.add('glow');
+      if (it.x + it.w < -10) { // verpasst: Zielwort kommt ohne Kommentar nochmal
+        if (it.isT) queue.splice(qi + 2, 0, t.word);
+        it.el.remove(); items = items.filter(x => x !== it);
+      }
+    }
+    const lastRight = items.length ? Math.max(...items.map(i => i.x + i.w)) : 0;
+    if (lastRight <= W0 - GAP) {
+      if (qi >= queue.length) { queue = queue.concat(makeQueue().slice(0, 4)); }
+      spawn(Math.max(W0, lastRight + GAP));
+    }
+    T.raf = requestAnimationFrame(frame);
+  }
+  T.raf = requestAnimationFrame(frame);
+}
+
+/* ---- Rundenende ---- */
+function endRound() {
+  const bonus = 3; addStars(bonus); G.stars += bonus;
+  const parts = Math.floor(S.stars / STERNE_PRO_TEIL) - G.parts0;
+  const lvNew = unlockedLevels() > G.lv0;
+  const msg = withName('Super, für heute geschafft!');
+  const spkMsg = 'Super, für heute geschafft!';
+  const shownStars = Math.min(G.stars, 12);
+  show(`${topbar('Geschafft!')}<div class="reward">
+    <h2>${esc(msg)}</h2>${baggi('hop')}
+    <div class="stars">${Array.from({ length: shownStars }, (_, i) => `<span style="animation-delay:${i * .12}s">⭐</span>`).join('')}</div>
+    <div class="hint">${G.stars} Sterne verdient</div>
+    ${G.newCol.length ? `<div class="hint">Neu im Lager:</div><div class="newbricks">${G.newCol.map(p => `<div class="brick">${wordHTML(specOf(p), 'tap')}</div>`).join('')}</div>` : ''}
+    ${parts > 0 ? '<div class="hint">🏗️ Es gibt ein neues Bauteil auf deiner Baustelle!</div>' : ''}
+    ${lvNew ? '<div class="hint">🔓 Neue Wörter sind freigeschaltet!</div>' : ''}
+    <div class="rbtns"><button class="btn big" data-act="home">Fertig</button><button class="btn big grey" data-act="blitz">Noch eine Runde</button></div>
+  </div>`);
+  Snd.fan(); confetti(50); speak(spkMsg);
+  save(); maybeChest();
+}
+
+/* =====================================================================
+   6. LESEPFAD
+   ===================================================================== */
+let R = null; // aktuelle Station
+
+function renderPath() {
+  const all = allStories();
+  let cur = all.findIndex(s => !(S.st[s.id] && S.st[s.id].done)); if (cur < 0) cur = all.length - 1;
+  show(`${topbar('Lesepfad')}<div class="scr"><div class="road">${all.map((s, i) => {
+    const done = !!(S.st[s.id] && S.st[s.id].done), open = done || i <= cur;
+    return `<button class="stn ${done ? 'done' : ''} ${i === cur ? 'cur' : ''} ${open ? '' : 'lock'}" data-act="station" data-i="${i}">
+      ${i === cur ? `<div class="onroad">${baggi('bob', true)}</div>` : ''}<span class="num">${open ? i + 1 : '🔒'}</span><span>${esc(s.title)}</span>${done ? '<span>⭐</span>' : ''}</button>`;
+  }).join('')}</div></div>`);
+}
+function openStation(i) {
+  const s = allStories()[i]; if (!s) return;
+  R = { s, i, round: 1, times: [], t0: 0, pause: 0, pausedAt: 0, heardOnce: false, wfw: false, idx: 0, ended: false };
+  renderRead();
+}
+function renderRead() {
+  const r = R;
+  show(`${topbar(r.s.title)}<div class="readscr">
+    <div class="storycard" id="story">${storyHTML(r.s.text)}</div>
+    <div class="rbar"><div class="fill" id="rfill" style="width:${(r.round - 1) / 3 * 100}%"></div><div class="pb" id="rpb" style="left:${(r.round - 1) / 3 * 100}%">${baggi('', true)}</div><span class="flag">🏁</span></div>
+    <div class="acts" id="acts">
+      <button class="btn grey" data-act="wfw" id="wfwb">👆 Wort für Wort</button>
+      <button class="btn grey" data-act="wfwnext" id="wfwn" style="display:none">Weiter ➜</button>
+      <button class="spk ${r.heardOnce ? '' : 'hide'}" data-act="listen" id="lbtn" style="border-radius:20px;padding:0 20px;width:auto;font-size:24px">🔊 Hör mal zu</button>
+      <button class="btn green" data-act="done">✅ Fertig gelesen</button>
+    </div></div>`);
+  wfwApply();
+  R.t0 = performance.now(); R.pause = 0; R.pausedAt = 0; R.ended = false;
+  if (r.round === 1) later(() => speak('Lies die Geschichte. Du kannst jedes Wort antippen.'), 400);
+  else later(() => speak(`Lies nochmal. Das ist Runde ${r.round}.`), 400);
+}
+function wfwApply() {
+  const ws = $$('#story .w'); if (!ws.length) return;
+  ws.forEach((w, i) => w.classList.toggle('dim', R.wfw && i !== R.idx));
+  const n = $('#wfwn'); if (n) n.style.display = R.wfw ? '' : 'none';
+  const b = $('#wfwb'); if (b) b.classList.toggle('green', R.wfw), b.classList.toggle('grey', !R.wfw);
+}
+async function listenStory() {
+  const id = T.id, ws = $$('#story .w');
+  R.pausedAt = performance.now(); // Lesezeit pausiert beim Zuhören
+  if (TTS.ok) speechSynthesis.cancel();
+  for (const w of ws) {
+    if (id !== T.id) return;
+    $$('#story .w.now').forEach(x => x.classList.remove('now'));
+    w.classList.add('now');
+    await speak(w.dataset.t, { keep: true });
+    await sleep(80);
+  }
+  if (id !== T.id) return;
+  ws.forEach(w => w.classList.remove('now'));
+  if (R.pausedAt) { R.pause += performance.now() - R.pausedAt; R.pausedAt = 0; }
+}
+function readDone() {
+  if (R.ended) return; R.ended = true;
+  if (R.pausedAt) { R.pause += performance.now() - R.pausedAt; R.pausedAt = 0; }
+  const sec = Math.max(1, (performance.now() - R.t0 - R.pause) / 1000);
+  R.times.push(sec);
+  const r = R.round; let text = 'Toll gelesen!', faster = false;
+  if (r > 1 && R.times[0] > 3 && sec < R.times[0] * 0.97) { text = 'Wow, schneller als beim ersten Mal!'; faster = true; }
+  else if (r > 1) text = withName(rnd(['Toll gelesen!', 'Prima gelesen!', 'Super gelesen!']));
+  const pct = r / 3 * 100;
+  $('#rfill').style.width = pct + '%'; $('#rpb').style.left = pct + '%';
+  Snd.ok(); if (faster) { Snd.star(); const b = $('#rpb .baggi'); b.classList.add('hop'); }
+  const acts = $('#acts');
+  if (r === 1) {
+    R.heardOnce = true;
+    acts.innerHTML = `<div class="bubble" style="flex:1 1 100%;text-align:center">${text}</div>
+      <button class="spk" data-act="listen" style="border-radius:20px;padding:0 20px;width:auto;font-size:24px">🔊 Hör mal zu</button>
+      <button class="btn orange" data-act="nextround">📖 Nochmal lesen ➜</button>`;
+  } else if (r < 3) {
+    acts.innerHTML = `<div class="bubble" style="flex:1 1 100%;text-align:center">${text}</div>
+      <button class="spk" data-act="listen" style="border-radius:20px;padding:0 20px;width:auto;font-size:24px">🔊 Hör mal zu</button>
+      <button class="btn orange" data-act="nextround">📖 Noch einmal lesen ➜</button>`;
+  } else {
+    acts.innerHTML = `<div class="bubble" style="flex:1 1 100%;text-align:center">${text}</div>
+      <button class="btn orange" data-act="question">❓ Eine Frage</button>`;
+  }
+  speak(text);
+}
+function nextRound() { R.round++; R.wfw = false; R.idx = 0; renderRead(); }
+
+/* Verständnisfrage */
+function renderQuestion() {
+  let q = R.s.q; if (!q) { const x = rnd(SENTENCES); q = { type: 'tf', s: x.s, a: x.a }; }
+  R.q = q; R.tries = 0;
+  const sent = storyHTML([q.s]).replace(/<span class="wp"><span class="pic">.*?<\/span><span>(.*?)<\/span><\/span>/g, '$1');
+  if (q.type === 'tf') {
+    show(`${topbar('Frage')}<div class="qcard"><div class="qq">Stimmt das? ${spk('Stimmt das? ' + plain(q.s))}</div>
+      <div class="qsent">${sent}</div>
+      <div class="ans"><button class="btn green" data-act="ans" data-v="1" style="font-size:60px">👍<span style="font-size:26px">Stimmt</span></button>
+      <button class="btn orange" data-act="ans" data-v="0" style="font-size:60px">👎<span style="font-size:26px">Stimmt nicht</span></button></div>
+      <div class="bubble" id="qb" style="min-width:60%">Tippe auf Daumen hoch oder runter.</div></div>`);
+  } else {
+    show(`${topbar('Frage')}<div class="qcard"><div class="qq">Welches Bild passt? ${spk('Welches Bild passt? ' + plain(q.s))}</div>
+      <div class="qsent">${sent}</div>
+      <div class="ans">${q.opts.map(o => `<button class="btn pc" data-act="ans" data-v="${esc(o)}">${pic(o)}</button>`).join('')}</div>
+      <div class="bubble" id="qb" style="min-width:60%">Tippe auf das passende Bild.</div></div>`);
+  }
+  later(() => speak(q.type === 'tf' ? 'Stimmt das?' : 'Welches Bild passt?'), 400);
+}
+function answerQ(el) {
+  if (R.qover) return;
+  const q = R.q, v = el.dataset.v;
+  const ok = q.type === 'tf' ? (v === '1') === q.a : v === q.a;
+  const qb = $('#qb');
+  if (ok) { R.qover = true; Snd.ok(); const t = withName(rnd(LOB)); qb.textContent = t; speak(t); R.qok = R.tries === 0; later(stationDone, 1800); }
+  else {
+    R.tries++; el.classList.add('gone');
+    if (R.tries === 1) { qb.textContent = 'Fast! Probier nochmal.'; speak('Fast! Probier nochmal.'); }
+    else {
+      R.qover = true;
+      const right = $$('.ans .btn').find(b => (q.type === 'tf' ? (b.dataset.v === '1') === q.a : b.dataset.v === q.a));
+      right.classList.remove('gone'); right.classList.add('glow');
+      const t = q.type === 'tf' ? (q.a ? 'Ja, das stimmt.' : 'Nein, das stimmt nicht.') : 'Dieses Bild passt.';
+      qb.textContent = t; speak(t); later(stationDone, 2800);
+    }
+  }
+}
+function stationDone() {
+  const id = R.s.id, rec = S.st[id] = S.st[id] || { done: false, runs: [] };
+  const first = !rec.done; rec.done = true;
+  rec.runs.push(R.times.map(x => Math.round(x * 10) / 10)); if (rec.runs.length > 6) rec.runs.shift();
+  const gain = first ? 3 : 1; addStars(gain); save();
+  const fin = withName('Station geschafft!');
+  show(`${topbar('Station geschafft!')}<div class="reward"><h2>${esc(fin)}</h2>${baggi('hop')}
+    <div class="stars">${Array.from({ length: gain }, (_, i) => `<span style="animation-delay:${i * .2}s">⭐</span>`).join('')}</div>
+    <div class="rbtns"><button class="btn big" data-act="path">Weiter ➜</button></div></div>`);
+  Snd.fan(); confetti(40); speak('Station geschafft!'); maybeChest();
+}
+
+/* =====================================================================
+   7. ELTERNBEREICH
+   ===================================================================== */
+const fmtT = x => Math.round(x) + ' s';
+function renderParent(keep) {
+  const y = keep ? $('.scr')?.scrollTop : 0;
+  rebuildWords();
+  const col = collectedWords();
+  const hard = WORDS.filter(w => S.w[w.p] && (S.w[w.p].miss >= 2 || S.w[w.p].heard >= 2))
+    .sort((a, b) => (S.w[b.p].miss * 2 + S.w[b.p].heard) - (S.w[a.p].miss * 2 + S.w[a.p].heard)).slice(0, 15);
+  const stRows = allStories().filter(s => S.st[s.id] && S.st[s.id].runs.length).map(s => {
+    const runs = S.st[s.id].runs, last = runs[runs.length - 1];
+    return `<tr><td>${esc(s.title)}</td><td>${last.map((t, i) => `${i + 1}. ${fmtT(t)}`).join(' · ')}</td><td>${runs.length}×</td></tr>`;
+  }).join('');
+  const done = Object.values(S.st).filter(x => x.done).length;
+  const li = levelInfo();
+  show(`${topbar('Elternbereich')}<div class="scr parent">
+  <div class="sec"><h3>Übersicht</h3>
+    <div><b>${col.length}</b> Wörter gesammelt · <b>${done}</b> von ${allStories().length} Stationen gelesen · <b>${S.stars}</b> Sterne</div>
+    <div class="chips">${li.map(l => `<span class="chip">Level ${l.i + 1}: ${l.got}/${l.total} ${l.unl ? '' : '🔒'}</span>`).join('')}</div>
+    <b>Gesammelt:</b><div class="chips">${col.map(w => `<span class="chip">${esc(w.p)}</span>`).join('') || '–'}</div>
+    <b>Fällt noch schwer (oft falsch oder oft vorgelesen):</b>
+    <div class="chips">${hard.map(w => `<span class="chip bad">${esc(w.p)} (${S.w[w.p].miss}× falsch, ${S.w[w.p].heard}× vorgelesen)</span>`).join('') || '–'}</div>
+    <b>Lesezeiten (letzter Durchlauf, 1.–3. Durchgang):</b>
+    ${stRows ? `<table><tr><th>Geschichte</th><th>Zeiten</th><th>Läufe</th></tr>${stRows}</table>` : '–'}
+  </div>
+  <div class="sec"><h3>Einstellungen</h3>
+    <label>Vorname des Kindes <input type="text" data-set="name" value="${esc(S.name)}" maxlength="20"></label>
+    <label><input type="checkbox" data-set="syl" ${S.set.syl ? 'checked' : ''}> Silbenfärbung (blau/rot)</label>
+    <label><input type="checkbox" data-set="sound" ${S.set.sound ? 'checked' : ''}> Töne</label>
+    <label><input type="checkbox" data-set="speech" ${S.set.speech ? 'checked' : ''}> Sprachausgabe${TTS.ok ? '' : ' (auf diesem Gerät nicht verfügbar)'}</label>
+    <label>Blitzdauer: <b id="v_flash">${(S.flashMs / 1000).toFixed(1)}</b> s <input type="range" data-set="flash" min="800" max="3000" step="100" value="${Math.round(S.flashMs)}"></label>
+    <div style="font-size:14px">Die App passt die Blitzdauer von selbst an. Hier kannst du sie neu festlegen.</div>
+    <label>Sprechtempo: <b id="v_rate">${S.set.rate.toFixed(2)}</b> <input type="range" data-set="rate" min="0.5" max="1.1" step="0.05" value="${S.set.rate}"></label>
+    <label>Aufgaben pro Runde <select data-set="roundLen">${[8, 9, 10].map(n => `<option ${S.set.roundLen === n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+  </div>
+  <div class="sec"><h3>Eigene Wörter</h3>
+    <div style="font-size:14px">Ein Wort pro Zeile, Silben mit | trennen (z. B. Rad|la|der). Sie werden vorrangig geübt.</div>
+    <textarea id="cwText" placeholder="Bag|ger"></textarea>
+    <button class="btn" data-act="addwords">Wörter hinzufügen</button>
+    <div class="chips">${S.cw.map((w, i) => `<span class="chip">${esc(w)}<button data-act="delword" data-i="${i}">✖</button></span>`).join('')}</div>
+  </div>
+  <div class="sec"><h3>Eigene Geschichten</h3>
+    <div style="font-size:14px">Titel und dann ein Satz pro Zeile. Silben mit | trennen. Bilder erscheinen bei bekannten Baustellenwörtern.</div>
+    <input type="text" id="csTitle" placeholder="Titel">
+    <textarea id="csText" placeholder="Das ist Bag|gi.&#10;Er ist gelb."></textarea>
+    <button class="btn" data-act="addstory">Geschichte hinzufügen</button>
+    <div class="chips">${S.cs.map((s, i) => `<span class="chip">${esc(s.title)}<button data-act="delstory" data-i="${i}">✖</button></span>`).join('')}</div>
+  </div>
+  <div class="sec"><h3>Fortschritt sichern</h3>
+    <textarea id="exp" placeholder="Hier erscheint der Export-Text. Zum Importieren hier einfügen."></textarea>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" data-act="export">Exportieren</button><button class="btn grey" data-act="import">Importieren</button>
+      <button class="btn grey" data-act="reset" style="background:#f6c3c0;box-shadow:0 4px 0 #b77">Zurücksetzen…</button>
+    </div>
+  </div>
+  <button class="btn big" data-act="home">Zurück zur Baustelle</button></div>`, 'parentscr');
+  if (y) $('.scr').scrollTop = y;
+}
+/* Einstellungen live speichern */
+document.addEventListener('input', e => {
+  const el = e.target.closest('[data-set]'); if (!el) return;
+  const k = el.dataset.set;
+  if (k === 'name') S.name = el.value.trim();
+  else if (k === 'flash') { S.flashMs = +el.value; S.set.flash = +el.value; $('#v_flash').textContent = (el.value / 1000).toFixed(1); }
+  else if (k === 'rate') { S.set.rate = +el.value; $('#v_rate').textContent = (+el.value).toFixed(2); }
+  else if (el.type === 'checkbox') { S.set[k] = el.checked; document.body.classList.toggle('nosyl', !S.set.syl); document.body.classList.toggle('nospeech', !TTS.ok || !S.set.speech); }
+  else if (k === 'roundLen') S.set.roundLen = +el.value;
+  save();
+});
+const VALID = /^[A-Za-zÄÖÜäöüß|]+$/;
+
+/* =====================================================================
+   AKTIONEN (alle Knöpfe laufen über data-act)
+   ===================================================================== */
+const ACT = {
+  begin() { ac(); renderHome(); },
+  home() { G = null; R = null; renderHome(); },
+  say(el) { speak(el.dataset.say); },
+  help() { if (G && G.help) G.help(); },
+  baggitap(el) { const b = $('.baggi', el); if (!b) return; b.classList.remove('wiggle'); void b.getBoundingClientRect(); b.classList.add('wiggle'); if (eq('hupe')) Snd.honk(); else Snd.pop(); },
+  blitz() { ac(); startBlitz(); },
+  path() { renderPath(); },
+  lager() { renderLager(); },
+  garage() { renderGarage(); },
+  veh(el) { Snd.honk(); const n = el.dataset.name; if (n !== '?') speak(n); else toast('Diese Maschine findest du noch in einer Werkzeugkiste!'); },
+  acc(el) { const k = el.dataset.k; S.eq[k] = !S.eq[k]; save(); renderGarage(); },
+  chest() { openChest(); },
+  chestopen() {
+    S.day.chest = true; const p = chestPrize(); save();
+    const m = $('.mbox'); if (!m) return;
+    m.innerHTML = `${chestSVG.replace('class="chest"', 'class="chest open"')}<div class="prize">${p.icon}</div><h2>${p.text}</h2><button class="btn big" data-act="chestclose">Toll!</button>`;
+    confetti(80); Snd.fan(); speak(p.text);
+  },
+  chestclose() { closeModal(); if ($('.home')) renderHome(); else { const e = $('#sc'); if (e) e.textContent = S.stars; } },
+  station(el) {
+    const i = +el.dataset.i, all = allStories();
+    let cur = all.findIndex(s => !(S.st[s.id] && S.st[s.id].done)); if (cur < 0) cur = all.length - 1;
+    const open = (S.st[all[i].id] && S.st[all[i].id].done) || i <= cur;
+    if (!open) { toast('Lies erst die Stationen davor!'); return; }
+    ac(); openStation(i);
+  },
+  wfw() { R.wfw = !R.wfw; R.idx = 0; wfwApply(); },
+  wfwnext() { const n = $$('#story .w').length; R.idx = Math.min(n - 1, R.idx + 1); wfwApply(); const w = $$('#story .w')[R.idx]; if (w) w.scrollIntoView({ block: 'nearest' }); },
+  listen() { listenStory(); },
+  done() { readDone(); },
+  nextround() { nextRound(); },
+  question() { R.qover = false; renderQuestion(); },
+  ans(el) { answerQ(el); },
+  addwords() {
+    const lines = $('#cwText').value.split(/\n/).map(x => x.trim()).filter(Boolean);
+    let n = 0; lines.forEach(l => { if (VALID.test(l) && !SPEC[plain(l)] && !S.cw.includes(l)) { S.cw.push(l); n++; } });
+    save(); rebuildWords(); renderParent(true); toast(n ? `${n} Wörter hinzugefügt` : 'Nichts hinzugefügt (nur Buchstaben und | erlaubt, keine Doppelten)');
+  },
+  delword(el) { S.cw.splice(+el.dataset.i, 1); save(); rebuildWords(); renderParent(true); },
+  addstory() {
+    const title = $('#csTitle').value.trim(), lines = $('#csText').value.split(/\n/).map(x => x.trim()).filter(Boolean);
+    if (!title || !lines.length) { toast('Bitte Titel und mindestens einen Satz eingeben.'); return; }
+    S.cs.push({ id: 'c' + Date.now(), title, text: lines, custom: true }); save(); renderParent(true); toast('Geschichte hinzugefügt – sie steht am Ende des Lesepfads.');
+  },
+  delstory(el) { S.cs.splice(+el.dataset.i, 1); save(); renderParent(true); },
+  export() {
+    const t = JSON.stringify(S); $('#exp').value = t;
+    try { navigator.clipboard.writeText(t).then(() => toast('In die Zwischenablage kopiert')); } catch (e) { toast('Bitte den Text markieren und kopieren'); }
+  },
+  import() {
+    try {
+      const o = JSON.parse($('#exp').value);
+      if (!o || typeof o !== 'object' || !o.set || !o.w) throw 0;
+      S = merge(defaults(), o); save(); rebuildWords(); renderParent(); toast('Fortschritt importiert');
+    } catch (e) { toast('Der Text konnte nicht gelesen werden.'); }
+  },
+  reset() {
+    modal(`<h2>Wirklich alles löschen?</h2><div>Alle Sterne, Wörter und Einstellungen gehen verloren.</div>
+      <button class="btn big grey" data-act="closemodal">Abbrechen</button><button class="btn" style="background:#f6c3c0;box-shadow:0 6px 0 #b77" data-act="reset2">Ja, alles löschen</button>`);
+  },
+  reset2() { S = defaults(); save(); rebuildWords(); closeModal(); renderHome(); toast('Alles zurückgesetzt'); },
+  closemodal() { closeModal(); }
+};
+
+/* Ein Klick-Handler für alles */
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]');
+  if (a && ACT[a.dataset.act]) { ACT[a.dataset.act](a, e); return; }
+  const w = e.target.closest('.w.tap');
+  if (w) { ac(); readWord(w); }
+});
+/* Doppeltipp-Zoom und Pinch verhindern */
+document.addEventListener('dblclick', e => e.preventDefault());
+['gesturestart', 'gesturechange'].forEach(ev => document.addEventListener(ev, e => e.preventDefault()));
+document.addEventListener('contextmenu', e => { if (!e.target.closest('input,textarea')) e.preventDefault(); });
+
+/* =====================================================================
+   8. START
+   ===================================================================== */
+rebuildWords();
+ensureDay();
+renderStart();
+</script>
+</body>
+</html>
