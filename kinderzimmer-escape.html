@@ -75,6 +75,9 @@ svg text{font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',san
 .dark .mask{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(circle clamp(80px,15vmin,130px) at var(--x) var(--y),rgba(0,0,8,0) 0,rgba(0,0,8,0) 55%,rgba(0,0,8,.985) 100%)}
 .dark .line{display:flex;flex-wrap:wrap;gap:8px 12px;justify-content:center}
 .dark .wd{border:0;background:transparent;color:#fff6c4;font-weight:700;font-size:clamp(26px,6.4vmin,52px);padding:2px 8px;border-radius:12px;position:relative;z-index:1}
+.bigw{font-size:clamp(40px,10vmin,80px);font-weight:700;background:#fff;border:4px solid #222;border-radius:20px;padding:6px 28px}
+.dark.big{height:clamp(250px,52vh,400px);gap:10px}
+.dark.big .wd{font-size:clamp(22px,4.8vmin,42px)}
 .dark .wd.found{z-index:3;background:#ffe066;color:#222}
 .bigl{width:clamp(90px,20vmin,150px);height:clamp(90px,20vmin,150px);border-radius:24px;background:var(--y);color:#222;font-weight:700;font-size:clamp(60px,14vmin,110px);display:flex;align-items:center;justify-content:center;border:5px solid #222;animation:pop .6s}
 .stars{width:100%;max-height:44vh;background:#1b1f55;border-radius:20px;border:4px solid #444a80}
@@ -109,16 +112,25 @@ const pick=(a,n)=>shuffle(a).slice(0,n);
 
 /* ---------- Ton ---------- */
 let speechOn=true,ac;
-function say(t){if(!speechOn||!window.speechSynthesis)return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t.replace(/[\u{1F000}-\u{1FFFF}☀-➿]/gu,''));u.lang='de-DE';u.rate=.75;speechSynthesis.speak(u)}
+/* Schönste deutsche Stimme wählen (bevorzugt "Natural"/"Online"/Google-Stimmen) */
+let deVoice=null;
+function pickVoice(){
+  const vs=(window.speechSynthesis?speechSynthesis.getVoices():[]).filter(v=>/^de/i.test(v.lang));
+  if(!vs.length)return;
+  const score=v=>(/natural/i.test(v.name)?20:0)+(/online|neural/i.test(v.name)?10:0)+(/google/i.test(v.name)?6:0)+(/premium|enhanced|erweitert/i.test(v.name)?6:0)+(/katja|amala|anna|petra|marlene|vicki|louisa|seraphina|florian/i.test(v.name)?3:0)+(/de-DE/i.test(v.lang)?2:0)+(v.localService?0:1);
+  deVoice=vs.sort((a,b)=>score(b)-score(a))[0];
+}
+if(window.speechSynthesis){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
+function say(t){if(!speechOn||!window.speechSynthesis)return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t.replace(/[\u{1F000}-\u{1FFFF}☀-➿]/gu,'').replace(/\s+/g,' '));u.lang='de-DE';if(deVoice)u.voice=deVoice;u.rate=.92;u.pitch=1.05;speechSynthesis.speak(u)}
 function beep(fs,d=.12){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();fs.forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.type='triangle';o.frequency.value=f;o.connect(g);g.connect(ac.destination);const t=ac.currentTime+i*d;g.gain.setValueAtTime(.15,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.start(t);o.stop(t+d)})}catch(e){}}
 const good=()=>beep([523,659,784]),bad=()=>beep([260,200],.15),fanfare=()=>beep([523,659,784,1047,784,1047,1319],.14);
 $('#snd').onclick=e=>{speechOn=!speechOn;e.target.textContent=speechOn?'🔔':'🔕';if(!speechOn)speechSynthesis&&speechSynthesis.cancel()};
 
 /* ---------- Spielstand ---------- */
-const WORD='MOND';
+let WORD='MOND';
 let S;
-const newState=()=>({note:0,chest:0,cave:0,teddy:0,stars:0,door:0,flash:0,letters:0});
-const OBJ=[
+const newState=()=>({room:1,note:0,chest:0,cave:0,teddy:0,stars:0,door:0,flash:0,letters:0,knote:0,kpantry:0,kfridge:0,koven:0,kbook:0,kdoor:0});
+const OBJ1=[
  ['note','Dreh dich um! An der Tür 🚪 hängt ein Zettel. Lies ihn.','note'],
  ['chest','Geh zur Spielzeugkiste 🧸 (links neben dem Bett) und öffne sie.','chest'],
  ['cave','Krabbel mit der Taschenlampe in die Deckenhöhle auf dem Hochbett 🛏️.','cave'],
@@ -126,11 +138,13 @@ const OBJ=[
  ['stars','Schau hoch zur Decke ⭐. Dort leuchten Sterne.','stars'],
  ['door','Geh zur Tür 🚪 und setze das Lösungswort zusammen.','door']
 ];
+let OBJ=OBJ1;
 const cur=()=>OBJ.find(o=>!S[o[0]]);
 function refreshUI(){
   const c=cur();$('#objt').textContent=c?c[1]:'Du hast es geschafft!';
   const inv=$('#inv');inv.innerHTML='';
-  inv.append(el('div','is'+(S.flash?' got':''),S.flash?'🔦':'?'));
+  $('#obj b').textContent='Raum '+S.room+' · Tipp';
+  if(S.room===1)inv.append(el('div','is'+(S.flash?' got':''),S.flash?'🔦':'?'));
   [...WORD].forEach((l,i)=>inv.append(el('div','is'+(i<S.letters?' got':''),i<S.letters?l:'?')));
   updateHint(false);
 }
@@ -412,6 +426,115 @@ function buildRoom(){
   addSpark('cave',0,1.78,bz+.9);addSpark('chest',-R+.62,.7,0);addSpark('door',.3,1.35,R-.2);addSpark('note',.8,1.7,R-.1,.2);addSpark('teddy',R-.4,1.3,.3);addSpark('stars',0,H-.18,.2,.3);
 }
 
+/* ===== Raum 2: Die Küche ===== */
+const labelTex=(txt,bg,fg,w=256,h=96)=>canvasTex(w,h,(g,W,Hh)=>{g.fillStyle=bg;g.fillRect(0,0,W,Hh);g.fillStyle=fg;g.font='bold '+Math.round(Hh*.55)+'px Verdana';g.textAlign='center';g.textBaseline='middle';g.fillText(txt,W/2,Hh/2+3)});
+const gardenTex=()=>canvasTex(1024,640,(g,w,h)=>{
+  const gr=g.createLinearGradient(0,0,0,h*.7);gr.addColorStop(0,'#6fb7ff');gr.addColorStop(.6,'#bfe3ff');gr.addColorStop(1,'#ffe9b0');g.fillStyle=gr;g.fillRect(0,0,w,h);
+  g.fillStyle='#fff6c0';g.beginPath();g.arc(w*.7,h*.32,46,0,7);g.fill();
+  g.fillStyle='rgba(255,255,255,.9)';[[200,120],[520,80],[820,160]].forEach(([x,y])=>{g.beginPath();g.arc(x,y,36,0,7);g.arc(x+40,y+6,30,0,7);g.arc(x-38,y+8,26,0,7);g.fill()});
+  g.fillStyle='#7cc46a';g.fillRect(0,h*.62,w,h);g.fillStyle='#5fae4f';g.beginPath();g.moveTo(0,h*.66);for(let x=0;x<=w;x+=40)g.lineTo(x,h*.62+Math.sin(x*.02)*14);g.lineTo(w,h);g.lineTo(0,h);g.fill();
+  [[160,.62],[600,.6],[900,.63]].forEach(([x,y])=>{g.fillStyle='#7a5430';g.fillRect(x-12,h*y-90,24,100);g.fillStyle='#3f9b4a';g.beginPath();g.arc(x,h*y-110,70,0,7);g.arc(x-40,h*y-80,50,0,7);g.arc(x+42,h*y-84,52,0,7);g.fill()});
+  for(let i=0;i<40;i++){g.fillStyle=['#ff6b6b','#ffd43b','#fff','#f783ac'][i%4];g.beginPath();g.arc(rnd(0,w),rnd(h*.72,h*.97),rnd(4,8),0,7);g.fill()}
+});
+const stripeTex=()=>canvasTex(256,256,(g,w)=>{const cs=['#e8786c','#fff3d6','#6aaee0','#fff3d6'];for(let i=0;i<8;i++){g.fillStyle=cs[i%4];g.fillRect(i*w/8,0,w/8,w)}for(let i=0;i<4000;i++){g.fillStyle='#000';g.globalAlpha=rnd(.02,.06);g.fillRect(rnd(0,w),rnd(0,w),2,2)}g.globalAlpha=1},[1,2]);
+
+function buildKitchen(){
+  scene3=new THREE.Scene();scene3.background=new THREE.Color(0x1a1830);
+  const root=new THREE.Group();scene3.add(root);
+  const wallPlain=c=>std({map:plasterTex(c),roughness:.95});
+  const wood=(b='#c58f55',d='#6e4420',v=false)=>std({map:woodTex(b,d,v),roughness:.6});
+  const metal=std({color:0x9aa0a6,roughness:.35,metalness:.85}),brass=std({color:0xd9ac2f,roughness:.3,metalness:.9}),white=std({color:0xf6f6f2,roughness:.5}),dark=std({color:0x20232a,roughness:.4});
+  const tileFloor=canvasTex(512,512,(g,w,h)=>{const n=8,s=w/n;for(let i=0;i<n;i++)for(let j=0;j<n;j++){g.fillStyle=(i+j)%2?'#efdcbe':'#c98a5e';g.fillRect(i*s,j*s,s,s);for(let k=0;k<30;k++){g.fillStyle='rgba(0,0,0,'+rnd(.01,.05)+')';g.fillRect(i*s+rnd(0,s),j*s+rnd(0,s),rnd(2,8),rnd(2,8))}g.strokeStyle='rgba(90,60,40,.45)';g.lineWidth=2;g.strokeRect(i*s,j*s,s,s)}},[2,2]);
+  const tileWall=canvasTex(512,128,(g,w,h)=>{g.fillStyle='#fdfdfb';g.fillRect(0,0,w,h);g.strokeStyle='#c4cdd4';g.lineWidth=3;for(let x=0;x<=w;x+=32){g.beginPath();g.moveTo(x,0);g.lineTo(x,h);g.stroke()}for(let y=0;y<=h;y+=32){g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke()}},[1.6,1]);
+  const wN=wallPlain('#d6ebc6'),wE=wallPlain('#fbe6ae'),wS=wallPlain('#ffd8c0'),wW=wallPlain('#cde5f3');
+
+  /* Raumhülle */
+  add(root,new THREE.PlaneGeometry(2*R,2*R),std({map:tileFloor,roughness:.35}),0,0,0,{rx:-Math.PI/2,cast:false});
+  add(root,new THREE.PlaneGeometry(2*R,2*R),std({map:plasterTex('#f4f1ea',[2,2]),roughness:1}),0,H,0,{rx:Math.PI/2,cast:false});
+  add(root,new THREE.PlaneGeometry(2*R,H),wN,0,H/2,-R);
+  add(root,new THREE.PlaneGeometry(2*R,H),wS,0,H/2,R,{ry:Math.PI});
+  add(root,new THREE.PlaneGeometry(2*R,H),wW,-R,H/2,0,{ry:Math.PI/2});
+  const ew=(z1,z2,y1,y2)=>add(root,new THREE.PlaneGeometry(z2-z1,y2-y1),wE,R,(y1+y2)/2,(z1+z2)/2,{ry:-Math.PI/2});
+  ew(-R,-.9,0,H);ew(.1,R,0,H);ew(-.9,.1,2.1,H);
+  [[0,-R+.01,2*R,0],[0,R-.01,2*R,Math.PI]].forEach(([x,z,l,ry])=>add(root,bx(l,.1,.02),white,x,.05,z));
+  add(root,bx(.02,.1,2*R),white,-R+.01,.05,0);
+  add(root,new THREE.PlaneGeometry(1.0,2.6),std({map:stripeTex(),roughness:1}),0,.008,0,{rx:-Math.PI/2,cast:false});
+
+  /* ===== Nordwand: Küchenzeile mit Herd und Ofen ===== */
+  const cab=std({map:woodTex('#efe6d2','#a89874'),roughness:.6});
+  [-1.2,-.6,.6,1.2].forEach(x=>{add(root,rbox(.58,.84,.6,.02),cab,x,.42,-R+.31);add(root,new THREE.CylinderGeometry(.012,.012,.14,8),metal,x+.2,.7,-R+.63)});
+  add(root,bx(3.1,.04,.64),std({color:0x6f5f52,roughness:.4}),0,.86,-R+.32);
+  add(root,new THREE.PlaneGeometry(3.1,.5),std({map:tileWall,roughness:.3}),0,1.15,-R+.011);
+  const oven=new THREE.Group();
+  add(oven,rbox(.58,.84,.6,.02),std({color:0xc8cdd2,roughness:.35,metalness:.7}),0,.42,0);
+  add(oven,bx(.42,.3,.01),std({color:0x15181c,roughness:.15,metalness:.2,emissive:0xff7a1a,emissiveIntensity:.35}),0,.38,.305);
+  add(oven,new THREE.CylinderGeometry(.012,.012,.46,8),metal,0,.6,.34,{rz:Math.PI/2});
+  [-.2,-.07,.07,.2].forEach(x=>add(oven,new THREE.CylinderGeometry(.025,.025,.03,12),dark,x,.78,.305,{rx:Math.PI/2}));
+  add(oven,bx(.56,.012,.5),dark,0,.862,0);
+  [[-.14,-.12],[.14,-.12],[-.14,.12],[.14,.12]].forEach(([x,z])=>add(oven,new THREE.TorusGeometry(.07,.008,8,20),std({color:0x333333,roughness:.5}),x,.872,z,{rx:Math.PI/2}));
+  oven.position.set(0,0,-R+.3);
+  add(oven,new THREE.CylinderGeometry(.11,.11,.12,20),metal,-.14,.93,-.12);add(oven,new THREE.CylinderGeometry(.115,.115,.015,20),metal,-.14,.995,-.12);
+  add(oven,new THREE.SphereGeometry(.014,8,8),dark,-.14,1.01,-.12);
+  tag(oven,'koven');root.add(oven);
+  add(root,bx(.72,.1,.5),metal,0,1.95,-R+.28);add(root,bx(.26,.6,.26),metal,0,2.3,-R+.2);
+  [-1.2,-.6,.6,1.2].forEach(x=>add(root,rbox(.58,.7,.35,.02),cab,x,1.85,-R+.19));
+  [['#e74c3c',.26],['#f1c40f',.22],['#27ae60',.3]].forEach(([c,h],i)=>add(root,new THREE.CylinderGeometry(.06,.06,h,14),std({color:c,roughness:.4,transparent:true,opacity:.92}),.95+i*.17,.88+h/2,-R+.2));
+  // Uhr
+  {const c=new THREE.Group();add(c,new THREE.CylinderGeometry(.17,.17,.05,32),wood('#c0392b','#7a1f14'),0,0,0,{rx:Math.PI/2});const f=new THREE.Mesh(new THREE.CircleGeometry(.15,32),std({map:clockTex()}));f.position.z=.027;c.add(f);c.position.set(-1.45,1.55,-R+.04);root.add(c)}
+
+  /* ===== Südwand: Kühlschrank mit Zettel ===== */
+  const fr=new THREE.Group();
+  const fMat=std({color:0xe6f0f4,roughness:.3,metalness:.25});
+  add(fr,rbox(.78,1.85,.7,.04),fMat,0,.925,0);
+  add(fr,bx(.78,.014,.01),dark,0,1.4,-.355);
+  add(fr,rbox(.03,.5,.04,.01),metal,.3,1.66,-.385);add(fr,rbox(.03,.8,.04,.01),metal,.3,.85,-.385);
+  [['A','#e74c3c',-.2,1.0],['B','#3498db',-.08,.75],['C','#f1c40f',-.22,.6],['D','#27ae60',.05,.95]].forEach(([l,c,x,y])=>add(fr,bx(.06,.06,.015),std({map:letterTex(l,c),roughness:.5}),x,y,-.362,{ry:Math.PI}));
+  fr.position.set(-.35,0,R-.4);tag(fr,'kfridge');root.add(fr);
+  {const n=new THREE.Group();add(n,new THREE.PlaneGeometry(.22,.28),std({map:paperTex(),roughness:.9,side:THREE.DoubleSide}),0,0,0);add(n,bx(.08,.03,.003),std({color:0xf3e4a6,transparent:true,opacity:.8}),0,.14,.004);n.position.set(-.1,1.58,R-.4-.362);n.rotation.y=Math.PI;n.rotation.z=-.05;tag(n,'knote');root.add(n)}
+  add(root,new THREE.CylinderGeometry(.18,.16,.5,18),std({color:0x8a9096,roughness:.4,metalness:.6}),1.2,.25,R-.3);add(root,new THREE.CylinderGeometry(.19,.19,.03,18),std({color:0x6c7277,roughness:.4,metalness:.6}),1.2,.51,R-.3);
+  {const c=new THREE.Group();add(c,new THREE.CylinderGeometry(.19,.19,.05,32),wood('#7a5430','#3a2410'),0,0,0,{rx:Math.PI/2});const f=new THREE.Mesh(new THREE.CircleGeometry(.165,32),std({map:clockTex()}));f.position.z=.027;c.add(f);c.rotation.y=Math.PI;c.position.set(1.0,1.7,R-.04);root.add(c)}
+  {const f=new THREE.Group();add(f,bx(.6,.46,.04),wood('#7a5430','#3a2410'),0,0,0);add(f,new THREE.PlaneGeometry(.5,.36),std({map:canvasTex(256,200,(g,w,h)=>{g.fillStyle='#fff2cc';g.fillRect(0,0,w,h);g.fillStyle='#f4a62a';g.beginPath();g.arc(128,100,56,0,7);g.fill();g.fillStyle='#fff';g.font='bold 64px Verdana';g.textAlign='center';g.fillText('🍰',128,122)})}),0,0,.022);f.rotation.y=Math.PI;f.position.set(.15,1.75,R-.03);root.add(f)}
+
+  /* ===== Westwand: Vorratsschrank + Kisten ===== */
+  const pan=new THREE.Group();
+  add(pan,rbox(.6,2.1,1.5,.03),wood('#c9a06a','#6a431c'),0,1.05,0);
+  [-.38,.38].forEach(z=>{add(pan,bx(.03,1.7,.7),wood('#dcb680','#6a431c',true),.31,.95,z);add(pan,bx(.02,1.3,.5),wood('#c49358','#6a431c',true),.33,.95,z);add(pan,new THREE.CylinderGeometry(.012,.012,.3,8),metal,.35,.95,z>0?.06:-.06)});
+  add(pan,bx(.02,.18,.8),std({map:labelTex('Vorrat','#fff3d6','#7a4a1a',320,96)}),.315,2.0,0);
+  pan.position.set(-R+.3,0,0);tag(pan,'kpantry');root.add(pan);
+  [-1.35,1.35].forEach((z,k)=>{const cr=new THREE.Group();add(cr,bx(.46,.24,.62),wood('#b98a52','#5c3a18'),0,.12,0);
+    for(let i=0;i<8;i++){const col=k?0xe74c3c:0xf39c12;add(cr,k?new THREE.SphereGeometry(.055,12,10):new THREE.ConeGeometry(.03,.2,8),std({color:col,roughness:.5}),rnd(-.14,.14),.3,rnd(-.23,.23),k?{}:{rz:rnd(-1.2,1.2)})}
+    cr.position.set(-R+.35,0,z);tag(cr,'kpantry');root.add(cr)});
+
+  /* ===== Ostwand: Gartentür + Regal mit Rezeptbuch ===== */
+  const garden=new THREE.Mesh(new THREE.PlaneGeometry(5,3.2),new THREE.MeshBasicMaterial({map:gardenTex()}));garden.position.set(R+1.3,1.4,-.4);garden.rotation.y=-Math.PI/2;scene3.add(garden);
+  const door=new THREE.Group();
+  const frm=wood('#ffffff','#cfcfcf');
+  add(door,bx(.1,2.14,.1),white,R-.06,1.07,-.92);add(door,bx(.1,2.14,.1),white,R-.06,1.07,.12);add(door,bx(.1,.1,1.14),white,R-.06,2.12,-.4);
+  add(door,bx(.05,.8,.9),wood('#c98b45','#6a3f16',true),R-.08,.42,-.4);
+  add(door,bx(.04,.05,.9),white,R-.08,.84,-.4);add(door,bx(.04,1.2,.04),white,R-.08,1.45,-.4);add(door,bx(.04,.04,.9),white,R-.08,1.45,-.4);
+  const gl=new THREE.Mesh(new THREE.PlaneGeometry(.9,1.25),new THREE.MeshPhysicalMaterial({color:0xffffff,transparent:true,opacity:.1,roughness:.05,clearcoat:1}));gl.position.set(R-.07,1.47,-.4);gl.rotation.y=-Math.PI/2;door.add(gl);
+  add(door,new THREE.CylinderGeometry(.012,.012,.16,10),brass,R-.15,1.0,-.12,{});add(door,new THREE.SphereGeometry(.03,12,10),brass,R-.15,1.0,-.16);
+  add(door,rbox(.04,.26,.2,.015),std({color:0x2d2f36,roughness:.5}),R-.12,.55,-.62);
+  [0,1,2,3].forEach(i=>add(door,bx(.01,.03,.03),new THREE.MeshBasicMaterial({color:0xff3b30}),R-.145,.64,-.7+i*.045));
+  tag(door,'kdoor');root.add(door);
+  add(root,bx(.2,.04,1.0),wood(),R-.1,1.3,1.35);
+  {const b=new THREE.Group();add(b,rbox(.22,.05,.3,.01),std({color:0xc0392b,roughness:.6}),0,0,0);add(b,new THREE.PlaneGeometry(.16,.1),std({map:labelTex('Rezepte','#fff3d6','#7a1f14',320,120)}),0,.027,0,{rx:-Math.PI/2});add(b,bx(.2,.012,.28),white,0,-.005,0);b.position.set(R-.1,1.345,1.2);b.rotation.y=.25;tag(b,'kbook');root.add(b)}
+  [[1.62,.3],[1.5,.22]].forEach(([z,h],i)=>{add(root,new THREE.CylinderGeometry(.04,.03,.08,12),std({color:0xc7623a}),R-.1,1.36,z);add(root,new THREE.ConeGeometry(.04,h,8),std({color:0x3b8a43}),R-.1+i*.01,1.4+h/2,z)});
+  add(root,new THREE.CylinderGeometry(.14,.1,.2,16),std({color:0xc7623a,roughness:.8}),R-.3,.1,1.2);
+  for(let i=0;i<6;i++)add(root,new THREE.ConeGeometry(.04,.4,8),std({color:0x3b8a43,roughness:.8}),R-.3+rnd(-.05,.05),.4,1.2+rnd(-.06,.06),{rz:rnd(-.5,.5)});
+
+  /* ===== Decke + Licht ===== */
+  add(root,new THREE.CylinderGeometry(.006,.006,.35,6),metal,0,H-.17,0,{cast:false});
+  const lampM=new THREE.Mesh(new THREE.SphereGeometry(.2,24,18),new THREE.MeshBasicMaterial({color:0xfff0b8}));lampM.position.set(0,H-.45,0);root.add(lampM);
+  const lg=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:.45}));lg.scale.set(.55,.55,1);lg.position.copy(lampM.position);root.add(lg);
+  scene3.add(new THREE.HemisphereLight(0xfff1dc,0x8a6a4a,1.25));
+  const lamp=new THREE.PointLight(0xffe0a0,10,0,2);lamp.position.set(0,H-.5,0);lamp.castShadow=true;lamp.shadow.mapSize.set(1024,1024);lamp.shadow.bias=-.003;lamp.shadow.normalBias=.03;lamp.shadow.radius=4;scene3.add(lamp);
+  const sun=new THREE.SpotLight(0xffc27a,26,0,.7,.7,1.5);sun.position.set(R+1.5,1.7,-.4);sun.target.position.set(-1,.2,-.4);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.002;scene3.add(sun,sun.target);
+
+  /* Funkel-Marker */
+  addSpark('koven',0,.7,-R+.75);addSpark('kpantry',-R+.55,1.2,0);addSpark('kfridge',-.35,1.1,R-.85);addSpark('knote',-.1,1.78,R-.82,.2);addSpark('kbook',R-.25,1.55,1.2,.2);addSpark('kdoor',R-.3,1.2,-.4);
+}
+
 /* ----- Renderer, Kamera ----- */
 function initGL(){
   try{
@@ -496,7 +619,7 @@ function updateMap(){
 
 /* ---------- Tipp-Glühen bei Stillstand ---------- */
 let idle;
-const WALLKEY={note:'w2',door:'w2',chest:'w1',cave:'w0',teddy:'w3',stars:'up'};
+const WALLKEY1={note:'w2',door:'w2',chest:'w1',cave:'w0',teddy:'w3',stars:'up'};let WALLKEY=WALLKEY1;
 function poke(){clearTimeout(idle);updateHint(false);idle=setTimeout(()=>updateHint(true),40000)}
 function updateHint(on){
   Object.values(mapB).forEach(b=>b.classList.remove('hint'));setGlow(null,false);
@@ -511,7 +634,7 @@ function open(build,{closable=true}={}){
   if(closable){const x=el('button','close','✖');x.onclick=close;p.append(x)}
   build(p,close);return close;
 }
-function sayBox(txt,auto=true){const d=el('div','say');d.append(document.createTextNode(txt+' '));const b=el('button','spk','🔊');b.onclick=()=>say(txt);d.append(b);if(auto)setTimeout(()=>say(txt),350);return d}
+function sayBox(txt,{auto=false,btn=true}={}){const d=el('div','say');d.append(document.createTextNode(txt+' '));if(btn){const b=el('button','spk','🔊');b.onclick=()=>say(txt);d.append(b)}if(auto)setTimeout(()=>say(txt),350);return d}
 function wrong(b){bad();b.classList.remove('shake');void b.offsetWidth;b.classList.add('shake')}
 function dots(n,i){const d=el('div','dots');for(let k=0;k<n;k++)d.append(el('i',k<i?'on':''));return d}
 function blocked(msg){open((p,c)=>{p.append(el('div','pic','🤔'),sayBox(msg));const b=el('button','btn','Okay');b.onclick=c;p.append(b)})}
@@ -525,7 +648,7 @@ function reward({items=[],letter,zettel,after}){
     items.forEach(i=>r.append(el('div','pic',i)));
     if(letter)r.append(el('div','bigl',letter));
     p.append(r);
-    if(zettel){const n=el('div','note');n.append(sayBox(zettel));p.append(n)}
+    if(zettel){const n=el('div','note');n.append(sayBox(zettel,{auto:true}));p.append(n)}
     const b=el('button','btn','Weiter ➜');b.onclick=()=>{c();after&&after()};p.append(b);
     refreshUI();
   },{closable:false});
@@ -550,20 +673,26 @@ const ACT={
   if(S.chest)return blocked('Die Kiste ist schon offen. Du hast die Taschenlampe.');
   open((p,c)=>{
     p.append(el('h2','','🧸 Die Spielzeugkiste'));
-    p.append(sayBox('Das Schloss will die Wörter. Tippe die Wörter in der Reihenfolge der Bilder.'));
-    const pics=[['🐻','Bär'],['🍎','Apfel'],['🚗','Auto']];let n=0;
-    const slots=el('div','row');const ss=pics.map(pc=>{const s=el('div','sl','<span class="pc">'+pc[0]+'</span>');slots.append(s);return s});
-    p.append(slots);
-    const tiles=el('div','row');
-    shuffle([...pics.map(x=>x[1]),'Ball']).forEach(w=>{
-      const b=el('button','tile',w);
-      b.onclick=()=>{
-        if(w===pics[n][1]){good();say(w);b.disabled=true;ss[n].innerHTML='<span class="pc">'+pics[n][0]+'</span><br>'+w;ss[n].classList.add('f');n++;
-          if(n===3){setTimeout(()=>{c();S.chest=1;S.flash=1;S.letters=1;reward({items:['🔦'],letter:'M',zettel:'In der Kiste liegt eine Taschenlampe! Damit siehst du im Dunkeln. Krabbel in die Deckenhöhle auf dem Hochbett.'})},900)}}
-        else wrong(b)};
-      tiles.append(b);
-    });
-    p.append(tiles);
+    p.append(sayBox('Das Schloss will die Wörter. Tippe die Wörter in der Reihenfolge der Bilder.',{btn:false}));
+    const PIC=[['🐻','Bär'],['🍎','Apfel'],['🚗','Auto'],['⚽','Ball'],['🌳','Baum'],['🏠','Haus'],['🌙','Mond'],['🐟','Fisch'],['🐶','Hund'],['☀️','Sonne']];
+    const ROUNDS=2,PER=3;let rd=0;
+    const area=el('div');area.style.cssText='display:flex;flex-direction:column;align-items:center;gap:14px;width:100%';p.append(area);
+    const draw=()=>{
+      area.innerHTML='';const pics=pick(PIC,PER);let n=0;
+      const slots=el('div','row');const ss=pics.map(pc=>{const s=el('div','sl','<span class="pc">'+pc[0]+'</span>');slots.append(s);return s});
+      const tiles=el('div','row');
+      area.append(dots(ROUNDS,rd),slots,tiles);
+      const extra=pick(PIC.filter(x=>!pics.includes(x)),2).map(x=>x[1]);
+      shuffle([...pics.map(x=>x[1]),...extra]).forEach(w=>{
+        const b=el('button','tile',w);
+        b.onclick=()=>{
+          if(w===pics[n][1]){good();b.disabled=true;ss[n].innerHTML='<span class="pc">'+pics[n][0]+'</span><br>'+w;ss[n].classList.add('f');n++;
+            if(n===PER){rd++;setTimeout(()=>{if(rd>=ROUNDS){c();S.chest=1;S.flash=1;S.letters=1;reward({items:['🔦'],letter:'M',zettel:'In der Kiste liegt eine Taschenlampe! Damit siehst du im Dunkeln. Krabbel in die Deckenhöhle auf dem Hochbett.'})}else draw()},900)}}
+          else wrong(b)};
+        tiles.append(b);
+      });
+    };
+    draw();
   });
  },
  cave(){
@@ -571,17 +700,17 @@ const ACT={
   if(S.cave)return blocked('Du warst schon in der Höhle. Der Teddy wartet am Fenster.');
   open((p,c)=>{
     p.append(el('h2','','⛺ In der Deckenhöhle'));
-    p.append(sayBox('Es ist dunkel! Leuchte mit der Lampe. Tippe die Wörter von links nach rechts an.'));
-    const sents=[['Der','Teddy','sitzt','am','Fenster.'],['Er','hat','etwas','im','Bauch.']];let si=0,wi=0;
-    const dk=el('div','dark');const mask=el('div','mask');const lines=[];
+    p.append(sayBox('Es ist dunkel! Leuchte mit der Lampe. Tippe die Wörter von links nach rechts an.',{btn:false}));
+    const sents=[['Es','ist','still','und','dunkel.'],['Der','Teddy','sitzt','am','Fenster.'],['Er','hat','etwas','im','Bauch.'],['Weck','ihn','auf!']];let si=0,wi=0;
+    const dk=el('div','dark big');const mask=el('div','mask');const lines=[];
     sents.forEach(s=>{const ln=el('div','line');s.forEach(w=>{const b=el('button','wd',w);b.dataset.w=w;ln.append(b)});lines.push(ln);dk.append(ln)});
     dk.append(mask);p.append(dk);
     const mv=e=>{const r=dk.getBoundingClientRect();dk.style.setProperty('--x',(e.clientX-r.left)+'px');dk.style.setProperty('--y',(e.clientY-r.top)+'px')};
     dk.addEventListener('pointermove',mv);dk.addEventListener('pointerdown',mv);
     dk.addEventListener('click',e=>{
       const b=e.target.closest('.wd');if(!b||b.classList.contains('found'))return;
-      if(b===lines[si].children[wi]){good();b.classList.add('found');say(b.dataset.w.replace('.',''));wi++;
-        if(wi>=sents[si].length){const full=sents[si].join(' ');setTimeout(()=>say(full),600);si++;wi=0;
+      if(b===lines[si].children[wi]){good();b.classList.add('found');wi++;
+        if(wi>=sents[si].length){si++;wi=0;
           if(si>=sents.length)setTimeout(()=>{c();S.cave=1;S.letters=2;reward({letter:'O',zettel:'Der Teddy sitzt am Fenster. Er hat etwas im Bauch. Geh zum Fenster und weck ihn auf!'})},2600)}}
       else wrong(b)});
     requestAnimationFrame(()=>{const f=lines[0].children[0].getBoundingClientRect(),r=dk.getBoundingClientRect();dk.style.setProperty('--x',(f.left-r.left+f.width/2)+'px');dk.style.setProperty('--y',(f.top-r.top+f.height/2)+'px')});
@@ -592,22 +721,22 @@ const ACT={
   if(S.teddy)return blocked('Der Teddy hat dir schon geholfen. Schau hoch zur Decke!');
   open((p,c)=>{
     p.append(el('h2','','🧸 Der Teddy'));
-    p.append(sayBox('Ich bin wach! Setze die Silben zu einem Wort zusammen, dann mache ich meinen Bauch auf.'));
-    const SY=[['🐰','Ha','se'],['👃','Na','se'],['🦉','Eu','le'],['🍰','Ku','chen'],['🕯️','Ker','ze']];
-    const rounds=pick(SY,3);let i=0;
+    p.append(sayBox('Ich bin wach! Setze die Silben zu einem Wort zusammen, dann mache ich meinen Bauch auf.',{btn:false}));
+    const SY=[['🐰','Ha','se'],['👃','Na','se'],['🦉','Eu','le'],['🍰','Ku','chen'],['🕯️','Ker','ze'],['🐯','Ti','ger'],['🌹','Ro','se'],['🐵','Af','fe']];
+    const rounds=pick(SY,5);let i=0;
     const draw=()=>{
       const old=p.querySelector('.rd');old&&old.remove();
       const rd=el('div','rd');rd.style.cssText='display:flex;flex-direction:column;align-items:center;gap:14px';
       const [pic,a,b]=rounds[i];let step=0;
       const sl=el('div','row');const s1=el('div','sl'),s2=el('div','sl');sl.append(s1,s2);
-      rd.append(dots(3,i),el('div','pic',pic),sl);
+      rd.append(dots(5,i),el('div','pic',pic),sl);
       const tl=el('div','row');
       const extra=pick(SY.filter(x=>x[0]!==pic).flatMap(x=>[x[1],x[2]]),1)[0];
       shuffle([a,b,extra]).forEach(t=>{
         const bt=el('button','tile',t);
         bt.onclick=()=>{
-          if(t===(step?b:a)){good();say(t);bt.disabled=true;const s=step?s2:s1;s.textContent=t;s.classList.add('f',step?'s2':'s1');step++;
-            if(step===2){setTimeout(()=>say(a+b),500);i++;setTimeout(()=>{if(i>=3){c();S.teddy=1;S.letters=3;reward({letter:'N',zettel:'Danke! Mein Bauch ist offen. Schau hoch zur Decke! Dort leuchten Sterne.'})}else draw()},1600)}}
+          if(t===(step?b:a)){good();bt.disabled=true;const s=step?s2:s1;s.textContent=t;s.classList.add('f',step?'s2':'s1');step++;
+            if(step===2){i++;setTimeout(()=>{if(i>=5){c();S.teddy=1;S.letters=3;reward({letter:'N',zettel:'Danke! Mein Bauch ist offen. Schau hoch zur Decke! Dort leuchten Sterne.'})}else draw()},1600)}}
           else wrong(bt)};
         tl.append(bt);
       });
@@ -624,7 +753,7 @@ const ACT={
     const COL={'roten':'#ff4d4d','gelben':'#ffd43b','blauen':'#4dabf7'},SZ={'großen':1,'kleinen':.55};
     const pos=[[160,120],[400,90],[640,130],[200,330],[450,350],[690,320]];
     const combos=shuffle([['roten','großen'],['roten','kleinen'],['gelben','großen'],['gelben','kleinen'],['blauen','großen'],['blauen','kleinen']]);
-    const targets=pick(combos,3);let i=0;
+    const targets=pick(combos,5);let i=0;
     const msg=el('div');p.append(msg);
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 800 450');svg.classList.add('stars');
     const dd=el('div');p.append(dd);
@@ -633,12 +762,12 @@ const ACT={
       pg.setAttribute('points',STAR(pos[k][0]+60,pos[k][1]+50,70*SZ[cb[1]]+15));pg.setAttribute('fill',COL[cb[0]]);pg.setAttribute('stroke','#fff');pg.setAttribute('stroke-width','4');
       pg.onclick=()=>{
         const t=targets[i];
-        if(cb===t){good();pg.setAttribute('opacity','.35');i++;if(i>=3)setTimeout(()=>{c();S.stars=1;S.letters=4;reward({letter:'D',zettel:'Alle Buchstaben sind da! Geh zur Tür und setze das Wort zusammen.'})},700);else show()}
+        if(cb===t){good();pg.setAttribute('opacity','.35');i++;if(i>=5)setTimeout(()=>{c();S.stars=1;S.letters=4;reward({letter:'D',zettel:'Alle Buchstaben sind da! Geh zur Tür und setze das Wort zusammen.'})},700);else show()}
         else wrong(pg)};
       svg.append(pg);
     });
     p.append(svg);
-    function show(){msg.innerHTML='';const t=targets[i];msg.append(dots(3,i),sayBox(`Tippe auf den ${t[1]} ${t[0]} Stern.`))}
+    function show(){msg.innerHTML='';const t=targets[i];msg.append(dots(5,i),sayBox(`Tippe auf den ${t[1]} ${t[0]} Stern.`,{btn:false}))}
     show();
   });
  },
@@ -647,35 +776,231 @@ const ACT={
   if(S.letters<4)return blocked(`Die Tür ist zu. Dir fehlen noch Buchstaben. Du hast schon ${S.letters} von 4. ${cur()[1]}`);
   open((p,c)=>{
     p.append(el('h2','','🔒 Das Schloss'));
-    p.append(sayBox('Was leuchtet nachts am Himmel? Tippe die Buchstaben in der richtigen Reihenfolge.'));
-    p.append(el('div','pic','🌙'));
-    let n=0;const sl=el('div','row');const ss=[...WORD].map(()=>{const s=el('div','sl');s.style.minWidth='clamp(60px,12vmin,100px)';sl.append(s);return s});p.append(sl);
-    const tl=el('div','row');
-    shuffle([...WORD]).forEach(l=>{const b=el('button','tile',l);b.style.minWidth='clamp(64px,12vmin,100px)';
-      b.onclick=()=>{if(l===WORD[n]){good();say(l);b.disabled=true;ss[n].textContent=l;ss[n].classList.add('f',n%2?'s2':'s1');n++;if(n===4)setTimeout(()=>{c();win()},900)}else wrong(b)};
-      tl.append(b)});
-    p.append(tl);
+    const area=el('div');area.style.cssText='display:flex;flex-direction:column;align-items:center;gap:14px;width:100%';p.append(area);
+    // Schritt 1: das richtige Wort erkennen
+    const stepWord=()=>{
+      area.innerHTML='';
+      area.append(sayBox('Was leuchtet nachts am Himmel? Tippe das richtige Wort.',{btn:false}),el('div','pic','🌙'));
+      const o=el('div','row');
+      shuffle(['Mond','Mund','Wand']).forEach(w=>{const b=el('button','opt',w);b.onclick=()=>{if(w==='Mond'){good();b.classList.add('ok');setTimeout(stepLetters,800)}else{b.classList.add('no');wrong(b)}};o.append(b)});
+      area.append(o);
+    };
+    // Schritt 2: das Wort mit den Buchstaben legen
+    const stepLetters=()=>{
+      area.innerHTML='';
+      area.append(sayBox('Super! Jetzt legst du das Wort mit den Buchstaben. Tippe sie der Reihe nach an.',{btn:false}),el('div','pic','🌙'));
+      let n=0;const sl=el('div','row');const ss=[...WORD].map(()=>{const s=el('div','sl');s.style.minWidth='clamp(60px,12vmin,100px)';sl.append(s);return s});area.append(sl);
+      const tl=el('div','row');
+      shuffle([...WORD]).forEach(l=>{const b=el('button','tile',l);b.style.minWidth='clamp(64px,12vmin,100px)';
+        b.onclick=()=>{if(l===WORD[n]){good();b.disabled=true;ss[n].textContent=l;ss[n].classList.add('f',n%2?'s2':'s1');n++;if(n===4)setTimeout(()=>{c();win()},900)}else wrong(b)};
+        tl.append(b)});
+      area.append(tl);
+    };
+    stepWord();
   });
  }
 };
-function win(){
-  S.door=1;refreshUI();fanfare();
+
+/* ---------- Raum 2: Rätsel in der Küche ---------- */
+const colWrap=a=>{a.style.cssText='display:flex;flex-direction:column;align-items:center;gap:14px;width:100%'};
+Object.assign(ACT,{
+ knote(){
   open((p,c)=>{
-    p.append(el('div','conf','🎉⭐🎉⭐🎉'),el('div','pic','🚪✨'),el('h2','','Die Tür ist offen! Du bist raus!'));
-    p.append(sayBox('Geschafft! Du hast alle Rätsel gelesen und gelöst. Die Tür ist offen. Super gemacht!'));
-    const b=el('button','btn','Nochmal spielen 🔁');b.onclick=()=>{c();startGame()};p.append(b);
+    p.append(el('h2','','📜 Ein Zettel am Kühlschrank'));
+    const n=el('div','note');
+    n.append(sayBox('Hallo! Du bist in der Küche. Die Gartentür ist zu. Dafür brauchst du ein Wort mit vier Buchstaben. Fang beim Vorratsschrank an.'));
+    p.append(n);
+    const b=el('button','btn','Verstanden ➜');
+    b.onclick=()=>{c();if(!S.knote){S.knote=1;refreshUI();setTimeout(()=>turnTo(270,-4),200)}};
+    p.append(b);
+  });
+ },
+ kpantry(){
+  if(!S.knote)return blocked('Der Schrank ist zu. Lies erst den Zettel am Kühlschrank.');
+  if(S.kpantry)return blocked('Der Vorratsschrank ist schon offen. Der Kühlschrank wartet auf dich.');
+  open((p,c)=>{
+    p.append(el('h2','','🗄️ Der Vorratsschrank'));
+    p.append(sayBox('Sortiere die Wörter: Ist es Obst oder Gemüse? Tippe auf den richtigen Korb.',{btn:false}));
+    const OB=['Apfel','Birne','Banane','Kirsche','Traube','Orange'],GE=['Karotte','Gurke','Tomate','Zwiebel','Kartoffel','Paprika'];
+    const items=shuffle([...pick(OB,3).map(w=>[w,'o']),...pick(GE,3).map(w=>[w,'g'])]);let i=0;
+    const area=el('div');colWrap(area);p.append(area);
+    const draw=()=>{
+      area.innerHTML='';
+      const [w,k]=items[i];
+      area.append(dots(items.length,i),el('div','bigw',w));
+      const row=el('div','row');
+      [['o','🍎 Obst'],['g','🥕 Gemüse']].forEach(([key,label])=>{
+        const b=el('button','opt',label);
+        b.onclick=()=>{
+          if(key===k){good();b.classList.add('ok');i++;setTimeout(()=>{if(i>=items.length){c();S.kpantry=1;S.letters=1;reward({letter:'B',zettel:'Im Schrank liegt ein Zettel: Der Kühlschrank mag Reime. Öffne ihn!'})}else draw()},600)}
+          else{b.classList.add('no');wrong(b)}};
+        row.append(b);
+      });
+      area.append(row);
+    };
+    draw();
+  });
+ },
+ kfridge(){
+  if(!S.kpantry)return blocked('Der Kühlschrank klemmt. Such zuerst im Vorratsschrank.');
+  if(S.kfridge)return blocked('Der Kühlschrank ist schon offen. Geh zum Ofen!');
+  open((p,c)=>{
+    p.append(el('h2','','🧊 Der Kühlschrank'));
+    p.append(sayBox('Finde die Reimwörter. Tippe zwei Wörter an, die sich reimen.',{btn:false}));
+    const PAIRS=[['Haus','Maus'],['Hose','Rose'],['Tisch','Fisch'],['Kuh','Schuh'],['Hand','Sand'],['Ball','Fall']];
+    const chosen=pick(PAIRS,4);
+    const cards=shuffle(chosen.flatMap((pr,pi)=>pr.map(w=>({w,pi}))));
+    let sel=null,done=0;
+    const grid=el('div','row');
+    const btns=cards.map(cd=>{
+      const b=el('button','tile',cd.w);b.style.minWidth='clamp(110px,22vmin,190px)';
+      b.onclick=()=>{
+        if(b.disabled)return;
+        if(!sel){sel={cd,b};b.style.outline='5px solid #1d5fd1';return}
+        if(sel.b===b){b.style.outline='';sel=null;return}
+        if(sel.cd.pi===cd.pi){good();[sel.b,b].forEach(x=>{x.disabled=true;x.style.outline='';x.style.background='#8fe3a4';x.style.opacity=1});sel=null;done++;
+          if(done===4)setTimeout(()=>{c();S.kfridge=1;S.letters=2;reward({letter:'R',zettel:'Der Kühlschrank ist offen! Schau zum Ofen. Dort stehen die Wörter durcheinander.'})},900)}
+        else{const a=sel.b;a.style.outline='';sel=null;wrong(a);wrong(b)}
+      };
+      grid.append(b);return b;
+    });
+    p.append(grid);
+  });
+ },
+ koven(){
+  if(!S.kfridge)return blocked('Der Ofen ist noch aus. Öffne zuerst den Kühlschrank.');
+  if(S.koven)return blocked('Der Kuchen ist fertig! Lies das Rezeptbuch neben der Gartentür.');
+  open((p,c)=>{
+    p.append(el('h2','','🍳 Der Ofen'));
+    p.append(sayBox('Die Wörter sind durcheinander. Tippe sie in der richtigen Reihenfolge an, bis ein Satz entsteht.',{btn:false}));
+    const SEN=[['Ich','backe','einen','Kuchen.'],['Der','Ofen','ist','heiß.'],['Mama','rührt','den','Teig.'],['Wir','essen','den','Kuchen.']];
+    const rounds=pick(SEN,3);let i=0;
+    const area=el('div');colWrap(area);p.append(area);
+    const draw=()=>{
+      area.innerHTML='';const s=rounds[i];let n=0;
+      const slots=el('div','row');const ss=s.map(()=>{const x=el('div','sl');x.style.minWidth='clamp(70px,14vmin,130px)';x.style.fontSize='clamp(20px,4.4vmin,36px)';slots.append(x);return x});
+      const tl=el('div','row');
+      shuffle(s.map((w,k)=>[w,k])).forEach(([w,k])=>{
+        const b=el('button','tile',w);b.style.fontSize='clamp(20px,4.4vmin,36px)';
+        b.onclick=()=>{
+          if(k===n){good();b.disabled=true;ss[n].textContent=w;ss[n].classList.add('f',n%2?'s2':'s1');n++;
+            if(n===s.length){i++;setTimeout(()=>{if(i>=rounds.length){c();S.koven=1;S.letters=3;reward({letter:'O',zettel:'Der Kuchen ist fertig! Lies das Rezeptbuch neben der Gartentür.'})}else draw()},1300)}}
+          else wrong(b)};
+        tl.append(b);
+      });
+      area.append(dots(rounds.length,i),slots,tl);
+    };
+    draw();
+  });
+ },
+ kbook(){
+  if(!S.koven)return blocked('Das Buch ist noch zu. Der Kuchen im Ofen muss erst fertig werden.');
+  if(S.kbook)return blocked('Du hast das Rezept gelesen. Geh zur Gartentür!');
+  open((p,c)=>{
+    p.append(el('h2','','📖 Das Rezeptbuch'));
+    const card=el('div','note');card.style.textAlign='left';card.style.fontSize='clamp(20px,3.6vmin,30px)';card.style.fontWeight='700';card.style.lineHeight='1.4';
+    card.innerHTML='Mia backt einen Kuchen.<br>Sie nimmt drei Eier und viel Mehl.<br>Der Kuchen ist gelb. Er riecht sehr gut.';
+    p.append(card);
+    p.append(sayBox('Lies den Text. Beantworte dann die Fragen.',{btn:false}));
+    const QS=[['Was backt Mia?',['Kuchen','Brot','Pizza']],['Was nimmt Mia?',['Eier und Mehl','Milch und Salz','Reis und Fisch']],['Wie ist der Kuchen?',['gelb','blau','grün']]];
+    let i=0;const area=el('div');colWrap(area);p.append(area);
+    const draw=()=>{
+      area.innerHTML='';const [q,opts]=QS[i];
+      area.append(dots(QS.length,i),el('div','say',q));
+      const o=el('div','row');
+      shuffle(opts).forEach(t=>{const b=el('button','opt',t);b.style.fontSize='clamp(22px,4.4vmin,38px)';
+        b.onclick=()=>{if(t===opts[0]){good();b.classList.add('ok');i++;setTimeout(()=>{if(i>=QS.length){c();S.kbook=1;S.letters=4;reward({letter:'T',zettel:'Alle Buchstaben sind da! Geh zur Gartentür und setze das Wort zusammen.'})}else draw()},700)}else{b.classList.add('no');wrong(b)}};
+        o.append(b)});
+      area.append(o);
+    };
+    draw();
+  });
+ },
+ kdoor(){
+  if(S.kdoor)return;
+  if(S.letters<4)return blocked(`Die Gartentür ist zu. Dir fehlen noch Buchstaben. Du hast schon ${S.letters} von 4. ${cur()[1]}`);
+  open((p,c)=>{
+    p.append(el('h2','','🔒 Das Schloss'));
+    const area=el('div');colWrap(area);p.append(area);
+    const stepWord=()=>{
+      area.innerHTML='';
+      area.append(sayBox('Was backt der Bäcker jeden Morgen? Tippe das richtige Wort.',{btn:false}),el('div','pic','🍞'));
+      const o=el('div','row');
+      shuffle(['Brot','Boot','Rot']).forEach(w=>{const b=el('button','opt',w);b.onclick=()=>{if(w==='Brot'){good();b.classList.add('ok');setTimeout(stepLetters,800)}else{b.classList.add('no');wrong(b)}};o.append(b)});
+      area.append(o);
+    };
+    const stepLetters=()=>{
+      area.innerHTML='';
+      area.append(sayBox('Super! Jetzt legst du das Wort mit den Buchstaben. Tippe sie der Reihe nach an.',{btn:false}),el('div','pic','🍞'));
+      let n=0;const sl=el('div','row');const ss=[...WORD].map(()=>{const s=el('div','sl');s.style.minWidth='clamp(60px,12vmin,100px)';sl.append(s);return s});area.append(sl);
+      const tl=el('div','row');
+      shuffle([...WORD]).forEach(l=>{const b=el('button','tile',l);b.style.minWidth='clamp(64px,12vmin,100px)';
+        b.onclick=()=>{if(l===WORD[n]){good();b.disabled=true;ss[n].textContent=l;ss[n].classList.add('f',n%2?'s2':'s1');n++;if(n===4)setTimeout(()=>{c();win()},900)}else wrong(b)};
+        tl.append(b)});
+      area.append(tl);
+    };
+    stepWord();
+  });
+ }
+});
+
+/* ---------- Räume wechseln ---------- */
+const OBJ2=[
+ ['knote','Schau dich um! Am Kühlschrank 🧊 hängt ein Zettel. Lies ihn.','knote'],
+ ['kpantry','Geh zum Vorratsschrank 🗄️ (links) und sortiere die Wörter.','kpantry'],
+ ['kfridge','Der Kühlschrank 🧊 mag Reime. Öffne ihn!','kfridge'],
+ ['koven','Geh zum Ofen 🍳 und bring die Wörter in die richtige Reihenfolge.','koven'],
+ ['kbook','Lies das Rezeptbuch 📖 neben der Gartentür.','kbook'],
+ ['kdoor','Geh zur Gartentür 🚪 und setze das Lösungswort zusammen.','kdoor']
+];
+const WALLKEY2={knote:'w2',kfridge:'w2',kpantry:'w1',koven:'w0',kbook:'w3',kdoor:'w3'};
+const MAPICONS={1:{w0:'🛏️',w3:'🪟',w2:'🚪',w1:'🧸'},2:{w0:'🍳',w3:'🚪',w2:'🧊',w1:'🗄️'}};
+let sceneRoom=1;
+function setMapIcons(n){Object.entries(MAPICONS[n]).forEach(([k,v])=>{mapB[k].textContent=v});mapB.up.style.display=n===1?'':'none'}
+function setRoomConfig(n){S.room=n;OBJ=n===1?OBJ1:OBJ2;WORD=n===1?'MOND':'BROT';WALLKEY=n===1?WALLKEY1:WALLKEY2;setMapIcons(n)}
+function disposeScene(){
+  if(!scene3)return;
+  scene3.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)[].concat(o.material).forEach(m=>{if(m.map&&m.map!==sparkTex&&m.map!==glowTex)m.map.dispose();m.dispose()})});
+}
+function loadRoom(n){
+  Object.keys(sparks).forEach(k=>delete sparks[k]);Object.keys(glows).forEach(k=>delete glows[k]);
+  disposeScene();(n===1?buildRoom:buildKitchen)();sceneRoom=n;
+  renderer.shadowMap.needsUpdate=true;hd=0;pt=-4;apply();
+}
+function startRoom2(){
+  S.letters=0;S.flash=0;setRoomConfig(2);loadRoom(2);refreshUI();poke();
+  open((p,c)=>{
+    p.classList.add('start');
+    p.append(el('div','pic','🍳🧊'),el('h1','','Raum 2: Die Küche'));
+    p.append(sayBox('Du bist in der Küche! Auch hier ist die Tür zu. Schau dich um, lies die Hinweise und löse die Rätsel.'));
+    const b=el('button','btn','Los geht’s! ▶');b.onclick=()=>{beep([440],.05);c()};p.append(b);
+  },{closable:false});
+}
+
+function win(){
+  S.door=1;if(S.room===2)S.kdoor=1;refreshUI();fanfare();
+  open((p,c)=>{
+    if(S.room===1){
+      p.append(el('div','conf','🎉⭐🎉'),el('div','pic','🚪✨'),el('h2','','Die Tür ist offen!'));
+      p.append(sayBox('Super! Du hast Raum 1 geschafft. Hinter der Tür liegt die Küche. Dort wartet das nächste Rätsel auf dich.',{auto:true}));
+      const b=el('button','btn','In die Küche ➜');b.onclick=()=>{c();startRoom2()};p.append(b);
+    }else{
+      p.append(el('div','conf','🎉⭐🎉⭐🎉'),el('div','pic','🌳🌼'),el('h2','','Die Gartentür ist offen! Du bist draußen!'));
+      p.append(sayBox('Geschafft! Du hast beide Räume gelöst und alles selbst gelesen. Super gemacht!',{auto:true}));
+      const b=el('button','btn','Nochmal spielen 🔁');b.onclick=()=>{c();startGame()};p.append(b);
+    }
   },{closable:false});
 }
 
 /* ---------- Start ---------- */
 function startGame(){
-  S=newState();refreshUI();hd=0;pt=-4;apply();
+  S=newState();setRoomConfig(1);if(sceneRoom!==1)loadRoom(1);refreshUI();hd=0;pt=-4;apply();
   $('#help').style.opacity=1;
   open((p,c)=>{
     p.classList.add('start');
     p.append(el('div','pic','🛏️🌙'),el('h1','','Kinderzimmer-Escape'));
     p.append(sayBox('Oh nein! Die Zimmertür ist zu. Schau dich im Zimmer um, lies die Hinweise und löse die Rätsel. Dann kommst du raus!'));
-    const b=el('button','btn','Los geht’s! ▶');b.onclick=()=>{beep([440],.05);c();setTimeout(()=>say(cur()[1]),300)};p.append(b);
+    const b=el('button','btn','Los geht’s! ▶');b.onclick=()=>{beep([440],.05);c()};p.append(b);
   },{closable:false});
   poke();
 }
