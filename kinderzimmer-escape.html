@@ -75,6 +75,7 @@ svg text{font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',san
 .dark .mask{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(circle clamp(80px,15vmin,130px) at var(--x) var(--y),rgba(0,0,8,0) 0,rgba(0,0,8,0) 55%,rgba(0,0,8,.985) 100%)}
 .dark .line{display:flex;flex-wrap:wrap;gap:8px 12px;justify-content:center}
 .dark .wd{border:0;background:transparent;color:#fff6c4;font-weight:700;font-size:clamp(26px,6.4vmin,52px);padding:2px 8px;border-radius:12px;position:relative;z-index:1}
+.hl{border-radius:10px;padding:0 10px;display:inline-block;box-shadow:0 3px 0 rgba(0,0,0,.2)}
 .bigw{font-size:clamp(40px,10vmin,80px);font-weight:700;background:#fff;border:4px solid #222;border-radius:20px;padding:6px 28px}
 .dark.big{height:clamp(250px,52vh,400px);gap:10px}
 .dark.big .wd{font-size:clamp(22px,4.8vmin,42px)}
@@ -767,7 +768,12 @@ const ACT={
       svg.append(pg);
     });
     p.append(svg);
-    function show(){msg.innerHTML='';const t=targets[i];msg.append(dots(5,i),sayBox(`Tippe auf den ${t[1]} ${t[0]} Stern.`,{btn:false}))}
+    function show(){
+      msg.innerHTML='';const t=targets[i];
+      const d=el('div','say');
+      d.innerHTML=`Tippe auf den <span class="hl" style="background:#ffe066">${t[1]}</span> <span class="hl" style="background:#ffe066">${t[0]}</span> Stern.`;
+      msg.append(dots(5,i),d);
+    }
     show();
   });
  },
